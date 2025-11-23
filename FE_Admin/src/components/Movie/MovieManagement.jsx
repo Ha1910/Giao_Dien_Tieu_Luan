@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Search, RefreshCw, Film, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Search, RefreshCw, Film, Calendar, Clock, AlertCircle, Upload, Image, Video } from 'lucide-react';
 import axios from 'axios';
 
 const MovieManagement = () => {
     const [movies, setMovies] = useState([]);
     const [loading, setLoading] = useState(false);
     const [modalLoading, setModalLoading] = useState(false);
+    const [uploadLoading, setUploadLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -18,7 +19,15 @@ const MovieManagement = () => {
         genre: '',
         duration: '',
         description: '',
-        releaseDate: ''
+        releaseDate: '',
+        imageUrl: '',
+        trailerUrl: ''
+    });
+
+    // Upload state
+    const [uploadProgress, setUploadProgress] = useState({
+        image: 0,
+        video: 0
     });
 
     // Filter state
@@ -26,6 +35,7 @@ const MovieManagement = () => {
     const [filterGenre, setFilterGenre] = useState('all');
 
     const API_BASE_URL = 'http://localhost:8080/api/movies';
+    const UPLOAD_API_URL = 'http://localhost:8080/api/upload';
 
     // Lấy JWT token từ localStorage
     const getAuthToken = () => {
@@ -43,13 +53,123 @@ const MovieManagement = () => {
         } : {};
     };
 
+    // Upload ảnh
+    const uploadImage = async (file) => {
+        setUploadLoading(true);
+        setUploadProgress(prev => ({ ...prev, image: 0 }));
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await axios.post(`${UPLOAD_API_URL}/image`, formData, {
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`,
+                    'Content-Type': 'multipart/form-data'
+                },
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setUploadProgress(prev => ({ ...prev, image: percentCompleted }));
+                }
+            });
+
+            setSuccess('Upload ảnh thành công!');
+            return response.data.data.imageUrl;
+        } catch (err) {
+            setError('Lỗi khi upload ảnh: ' + (err.response?.data?.message || err.message));
+            throw err;
+        } finally {
+            setUploadLoading(false);
+            setUploadProgress(prev => ({ ...prev, image: 0 }));
+        }
+    };
+
+    // Upload video
+    const uploadVideo = async (file) => {
+        setUploadLoading(true);
+        setUploadProgress(prev => ({ ...prev, video: 0 }));
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await axios.post(`${UPLOAD_API_URL}/video`, formData, {
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`,
+                    'Content-Type': 'multipart/form-data'
+                },
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setUploadProgress(prev => ({ ...prev, video: percentCompleted }));
+                }
+            });
+
+            setSuccess('Upload video thành công!');
+            return response.data.data.videoUrl;
+        } catch (err) {
+            setError('Lỗi khi upload video: ' + (err.response?.data?.message || err.message));
+            throw err;
+        } finally {
+            setUploadLoading(false);
+            setUploadProgress(prev => ({ ...prev, video: 0 }));
+        }
+    };
+
+    // Handle image file select
+    const handleImageSelect = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            setError('Vui lòng chọn file ảnh hợp lệ!');
+            return;
+        }
+
+        // Validate file size (5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Kích thước ảnh không được vượt quá 5MB!');
+            return;
+        }
+
+        try {
+            const imageUrl = await uploadImage(file);
+            setFormData(prev => ({ ...prev, imageUrl }));
+        } catch (err) {
+            console.error('Upload image error:', err);
+        }
+    };
+
+    // Handle video file select
+    const handleVideoSelect = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('video/')) {
+            setError('Vui lòng chọn file video hợp lệ!');
+            return;
+        }
+
+        // Validate file size (50MB)
+        if (file.size > 50 * 1024 * 1024) {
+            setError('Kích thước video không được vượt quá 50MB!');
+            return;
+        }
+
+        try {
+            const trailerUrl = await uploadVideo(file);
+            setFormData(prev => ({ ...prev, trailerUrl }));
+        } catch (err) {
+            console.error('Upload video error:', err);
+        }
+    };
+
     // Fetch movies
     const fetchMovies = async () => {
         setLoading(true);
         setError('');
         try {
-            console.log('🎬 Đang gọi API movies...', API_BASE_URL);
-
             const response = await axios.get(API_BASE_URL, {
                 timeout: 10000,
                 headers: {
@@ -57,9 +177,6 @@ const MovieManagement = () => {
                     'Cache-Control': 'no-cache'
                 }
             });
-
-            console.log('✅ Response status:', response.status);
-            console.log('✅ Response data:', response.data);
 
             if (response.data && Array.isArray(response.data)) {
                 setMovies(response.data);
@@ -73,8 +190,6 @@ const MovieManagement = () => {
 
         } catch (err) {
             console.error('💥 Lỗi fetch movies:', err);
-            console.error('💥 Error response:', err.response);
-
             if (err.response?.status === 403) {
                 setError('🚫 Truy cập bị từ chối. Kiểm tra public endpoints trong SecurityConfig');
             } else if (err.response?.status === 404) {
@@ -129,12 +244,10 @@ const MovieManagement = () => {
 
         try {
             await axios.delete(`${API_BASE_URL}/${movieId}`, getAuthConfig());
-
             setMovies(prevMovies => prevMovies.filter(m => m.movieID !== movieId));
             setSuccess('Đã xóa phim thành công!');
             setShowDeleteModal(false);
             setSelectedMovie(null);
-
         } catch (err) {
             setError('Lỗi khi xóa phim: ' + (err.response?.data?.message || err.message));
         } finally {
@@ -189,7 +302,9 @@ const MovieManagement = () => {
             genre: formData.genre || '',
             duration: parseInt(formData.duration),
             description: formData.description || '',
-            releaseDate: formData.releaseDate || ''
+            releaseDate: formData.releaseDate || '',
+            imageUrl: formData.imageUrl || '',
+            trailerUrl: formData.trailerUrl || ''
         };
 
         console.log('📤 Gửi dữ liệu:', submitData);
@@ -208,7 +323,9 @@ const MovieManagement = () => {
             genre: movie.genre || '',
             duration: movie.duration?.toString() || '',
             description: movie.description || '',
-            releaseDate: movie.releaseDate || ''
+            releaseDate: movie.releaseDate || '',
+            imageUrl: movie.imageUrl || '',
+            trailerUrl: movie.trailerUrl || ''
         });
         setShowModal(true);
         setError('');
@@ -221,7 +338,9 @@ const MovieManagement = () => {
             genre: '',
             duration: '',
             description: '',
-            releaseDate: ''
+            releaseDate: '',
+            imageUrl: '',
+            trailerUrl: ''
         });
         setShowModal(true);
         setError('');
@@ -230,8 +349,17 @@ const MovieManagement = () => {
     const closeModal = () => {
         setShowModal(false);
         setSelectedMovie(null);
-        setFormData({ title: '', genre: '', duration: '', description: '', releaseDate: '' });
+        setFormData({
+            title: '',
+            genre: '',
+            duration: '',
+            description: '',
+            releaseDate: '',
+            imageUrl: '',
+            trailerUrl: ''
+        });
         setError('');
+        setUploadProgress({ image: 0, video: 0 });
     };
 
     // Handle search input key press
@@ -416,6 +544,20 @@ const MovieManagement = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
                             {filteredMovies.map((movie) => (
                                 <div key={movie.movieID} className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all hover:transform hover:scale-105">
+                                    {/* Movie Poster */}
+                                    {movie.imageUrl && (
+                                        <div className="mb-4 rounded-lg overflow-hidden">
+                                            <img
+                                                src={movie.imageUrl}
+                                                alt={movie.title}
+                                                className="w-full h-48 object-cover"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex-1">
                                             <h3 className="text-xl font-bold text-white truncate">
@@ -455,6 +597,21 @@ const MovieManagement = () => {
                                             </p>
                                         )}
 
+                                        {/* Trailer Preview */}
+                                        {movie.trailerUrl && (
+                                            <div className="pt-2">
+                                                <a
+                                                    href={movie.trailerUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm"
+                                                >
+                                                    <Video className="w-4 h-4" />
+                                                    Xem trailer
+                                                </a>
+                                            </div>
+                                        )}
+
                                         <div className="flex items-center gap-4 text-white/70">
                                             <div className="flex items-center gap-2">
                                                 <Clock className="w-4 h-4" />
@@ -485,7 +642,7 @@ const MovieManagement = () => {
                 {/* Create/Edit Modal */}
                 {showModal && (
                     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-white/20 shadow-2xl">
+                        <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-2xl border border-white/20 shadow-2xl max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-2xl font-bold text-white">
                                     {selectedMovie ? 'Chỉnh sửa phim' : 'Thêm phim mới'}
@@ -496,41 +653,55 @@ const MovieManagement = () => {
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Tên phim *</label>
-                                    <input
-                                        type="text"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Nhập tên phim"
-                                        required
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-white/80 mb-2 text-sm font-medium">Tên phim *</label>
+                                        <input
+                                            type="text"
+                                            value={formData.title}
+                                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Nhập tên phim"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-white/80 mb-2 text-sm font-medium">Thể loại</label>
+                                        <input
+                                            type="text"
+                                            value={formData.genre}
+                                            onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Ví dụ: Action, Drama, Comedy"
+                                        />
+                                    </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Thể loại</label>
-                                    <input
-                                        type="text"
-                                        value={formData.genre}
-                                        onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Ví dụ: Action, Drama, Comedy"
-                                    />
-                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-white/80 mb-2 text-sm font-medium">Thời lượng (phút) *</label>
+                                        <input
+                                            type="number"
+                                            value={formData.duration}
+                                            onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Nhập thời lượng phim"
+                                            step="1"
+                                            min="1"
+                                            required
+                                        />
+                                    </div>
 
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Thời lượng (phút) *</label>
-                                    <input
-                                        type="number"
-                                        value={formData.duration}
-                                        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Nhập thời lượng phim"
-                                        step="1"
-                                        min="1"
-                                        required
-                                    />
+                                    <div>
+                                        <label className="block text-white/80 mb-2 text-sm font-medium">Ngày phát hành</label>
+                                        <input
+                                            type="date"
+                                            value={formData.releaseDate}
+                                            onChange={(e) => setFormData({ ...formData, releaseDate: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -544,28 +715,115 @@ const MovieManagement = () => {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Ngày phát hành</label>
-                                    <input
-                                        type="date"
-                                        value={formData.releaseDate}
-                                        onChange={(e) => setFormData({ ...formData, releaseDate: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
+                                {/* Upload Sections */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Image Upload */}
+                                    <div className="space-y-3">
+                                        <label className="block text-white/80 text-sm font-medium">Ảnh Poster</label>
+                                        <div className="border-2 border-dashed border-white/20 rounded-xl p-4 text-center hover:border-white/40 transition-colors">
+                                            <input
+                                                type="file"
+                                                id="image-upload"
+                                                accept="image/*"
+                                                onChange={handleImageSelect}
+                                                className="hidden"
+                                            />
+                                            <label htmlFor="image-upload" className="cursor-pointer">
+                                                <Image className="w-8 h-8 text-white/50 mx-auto mb-2" />
+                                                <p className="text-white/70 text-sm">
+                                                    {formData.imageUrl ? 'Đã chọn ảnh' : 'Chọn ảnh poster'}
+                                                </p>
+                                                <p className="text-white/50 text-xs mt-1">JPG, PNG (Tối đa 5MB)</p>
+                                            </label>
+                                        </div>
+
+                                        {uploadProgress.image > 0 && (
+                                            <div className="w-full bg-white/10 rounded-full h-2">
+                                                <div
+                                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${uploadProgress.image}%` }}
+                                                ></div>
+                                            </div>
+                                        )}
+
+                                        {formData.imageUrl && (
+                                            <div className="mt-2">
+                                                <img
+                                                    src={formData.imageUrl}
+                                                    alt="Preview"
+                                                    className="w-full h-32 object-cover rounded-lg"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                                                    className="text-red-400 text-xs mt-1 hover:text-red-300"
+                                                >
+                                                    Xóa ảnh
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Video Upload */}
+                                    <div className="space-y-3">
+                                        <label className="block text-white/80 text-sm font-medium">Trailer Video</label>
+                                        <div className="border-2 border-dashed border-white/20 rounded-xl p-4 text-center hover:border-white/40 transition-colors">
+                                            <input
+                                                type="file"
+                                                id="video-upload"
+                                                accept="video/*"
+                                                onChange={handleVideoSelect}
+                                                className="hidden"
+                                            />
+                                            <label htmlFor="video-upload" className="cursor-pointer">
+                                                <Video className="w-8 h-8 text-white/50 mx-auto mb-2" />
+                                                <p className="text-white/70 text-sm">
+                                                    {formData.trailerUrl ? 'Đã chọn video' : 'Chọn trailer video'}
+                                                </p>
+                                                <p className="text-white/50 text-xs mt-1">MP4, MOV (Tối đa 50MB)</p>
+                                            </label>
+                                        </div>
+
+                                        {uploadProgress.video > 0 && (
+                                            <div className="w-full bg-white/10 rounded-full h-2">
+                                                <div
+                                                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${uploadProgress.video}%` }}
+                                                ></div>
+                                            </div>
+                                        )}
+
+                                        {formData.trailerUrl && (
+                                            <div className="mt-2">
+                                                <video
+                                                    src={formData.trailerUrl}
+                                                    className="w-full h-32 object-cover rounded-lg"
+                                                    controls
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, trailerUrl: '' }))}
+                                                    className="text-red-400 text-xs mt-1 hover:text-red-300"
+                                                >
+                                                    Xóa video
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3 pt-4">
                                     <button
                                         type="button"
                                         onClick={closeModal}
-                                        disabled={modalLoading}
+                                        disabled={modalLoading || uploadLoading}
                                         className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors disabled:opacity-50"
                                     >
                                         Hủy
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={modalLoading}
+                                        disabled={modalLoading || uploadLoading}
                                         className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         <Save className="w-5 h-5" />

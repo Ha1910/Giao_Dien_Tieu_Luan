@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Calendar, Clock, Film, Users, Search, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Calendar, Clock, Film, Users, Search, RefreshCw, DollarSign } from 'lucide-react';
 import axios from 'axios';
 
 // Tạo instance axios với cấu hình mặc định
@@ -52,15 +52,9 @@ const ShowtimeManagement = () => {
         endTime: '',
         showtimeDate: '',
         description: '',
+        basePrice: '', // Giá vé - bắt buộc nhập
         movieId: '',
         roomId: ''
-    });
-
-    // Filters
-    const [filters, setFilters] = useState({
-        movie: '',
-        room: '',
-        date: ''
     });
 
     // Fetch data
@@ -70,20 +64,49 @@ const ShowtimeManagement = () => {
         fetchRooms();
     }, []);
 
-    // Debug data
-    useEffect(() => {
-        console.log('Movies:', movies);
-        console.log('Rooms:', rooms);
-        console.log('Showtimes:', showtimes);
-    }, [movies, rooms, showtimes]);
-
     const fetchShowtimes = async () => {
         setLoading(true);
+        setError('');
         try {
+            console.log('🔄 Đang gọi API showtimes...');
             const response = await api.get('/showtimes');
-            setShowtimes(response.data);
+            console.log('✅ API Response status:', response.status);
+            console.log('📊 Response data:', response.data);
+
+            // Xử lý nhiều định dạng response khác nhau
+            let showtimesData = response.data;
+
+            if (response.data && response.data.data && Array.isArray(response.data.data)) {
+                showtimesData = response.data.data;
+            } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+                showtimesData = response.data.content;
+            } else if (Array.isArray(response.data)) {
+                showtimesData = response.data;
+            } else if (response.data && typeof response.data === 'object') {
+                showtimesData = [response.data];
+            } else {
+                showtimesData = [];
+            }
+
+            console.log('🎬 Processed showtimes:', showtimesData);
+            setShowtimes(showtimesData);
+
         } catch (err) {
-            setError('Lỗi khi tải danh sách lịch chiếu: ' + (err.response?.data?.message || err.message));
+            console.error('💥 Lỗi fetch showtimes:', err);
+            console.error('📡 Error response:', err.response);
+
+            if (err.response?.status === 404) {
+                setError('API endpoint /showtimes không tồn tại. Kiểm tra lại đường dẫn API.');
+            } else if (err.response?.status === 403) {
+                setError('Không có quyền truy cập. Kiểm tra authentication token.');
+            } else if (err.response?.status === 500) {
+                setError('Lỗi server. Kiểm tra console backend.');
+            } else if (err.code === 'NETWORK_ERROR' || err.message === 'Network Error') {
+                setError('Không thể kết nối đến server. Kiểm tra kết nối mạng và URL.');
+            } else {
+                setError('Lỗi khi tải danh sách lịch chiếu: ' + (err.response?.data?.message || err.message));
+            }
+            setShowtimes([]);
         } finally {
             setLoading(false);
         }
@@ -92,54 +115,42 @@ const ShowtimeManagement = () => {
     const fetchMovies = async () => {
         try {
             const response = await api.get('/movies');
-            setMovies(response.data);
+            let moviesData = response.data;
+
+            if (response.data && response.data.data && Array.isArray(response.data.data)) {
+                moviesData = response.data.data;
+            } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+                moviesData = response.data.content;
+            } else if (Array.isArray(response.data)) {
+                moviesData = response.data;
+            }
+
+            setMovies(moviesData || []);
         } catch (err) {
             console.error('Lỗi khi tải danh sách phim:', err);
             setError('Lỗi khi tải danh sách phim: ' + (err.response?.data?.message || err.message));
+            setMovies([]);
         }
     };
 
     const fetchRooms = async () => {
         try {
             const response = await api.get('/rooms');
-            setRooms(response.data);
+            let roomsData = response.data;
+
+            if (response.data && response.data.data && Array.isArray(response.data.data)) {
+                roomsData = response.data.data;
+            } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+                roomsData = response.data.content;
+            } else if (Array.isArray(response.data)) {
+                roomsData = response.data;
+            }
+
+            setRooms(roomsData || []);
         } catch (err) {
             console.error('Lỗi khi tải danh sách phòng:', err);
             setError('Lỗi khi tải danh sách phòng: ' + (err.response?.data?.message || err.message));
-        }
-    };
-
-    const fetchShowtimesByMovie = async (movieId) => {
-        if (!movieId) {
-            fetchShowtimes();
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const response = await api.get(`/showtimes/movie/${movieId}`);
-            setShowtimes(response.data);
-        } catch (err) {
-            setError('Lỗi khi tải lịch chiếu theo phim: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchShowtimesByDate = async (date) => {
-        if (!date) {
-            fetchShowtimes();
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const response = await api.get(`/showtimes/date/${date}`);
-            setShowtimes(response.data);
-        } catch (err) {
-            setError('Lỗi khi tải lịch chiếu theo ngày: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setLoading(false);
+            setRooms([]);
         }
     };
 
@@ -155,9 +166,12 @@ const ShowtimeManagement = () => {
                 endTime: formData.endTime,
                 showtimeDate: formData.showtimeDate,
                 description: formData.description,
+                basePrice: parseFloat(formData.basePrice), // Bắt buộc nhập, không có mặc định
                 movieId: parseInt(formData.movieId),
                 roomId: parseInt(formData.roomId)
             };
+
+            console.log('Sending showtime data:', showtimeRequest);
 
             if (formData.showtimeID) {
                 response = await api.put(`/showtimes/${formData.showtimeID}`, showtimeRequest);
@@ -172,6 +186,7 @@ const ShowtimeManagement = () => {
                 fetchShowtimes();
             }
         } catch (err) {
+            console.error('Save showtime error:', err);
             setError('Lỗi khi lưu lịch chiếu: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
@@ -199,6 +214,7 @@ const ShowtimeManagement = () => {
             endTime: showtime.endTime,
             showtimeDate: showtime.showtimeDate,
             description: showtime.description || '',
+            basePrice: showtime.basePrice ? showtime.basePrice.toString() : '',
             movieId: showtime.movie?.movieID || '',
             roomId: showtime.room?.roomID || ''
         });
@@ -212,25 +228,10 @@ const ShowtimeManagement = () => {
             endTime: '',
             showtimeDate: '',
             description: '',
+            basePrice: '',
             movieId: '',
             roomId: ''
         });
-    };
-
-    // Filter functions
-    const applyFilters = () => {
-        if (filters.movie) {
-            fetchShowtimesByMovie(filters.movie);
-        } else if (filters.date) {
-            fetchShowtimesByDate(filters.date);
-        } else {
-            fetchShowtimes();
-        }
-    };
-
-    const resetFilters = () => {
-        setFilters({ movie: '', room: '', date: '' });
-        fetchShowtimes();
     };
 
     // Helper functions
@@ -246,59 +247,12 @@ const ShowtimeManagement = () => {
         return date.toLocaleDateString('vi-VN');
     };
 
-    // Kiểm tra xung đột lịch chiếu
-    const isTimeConflict = (newShowtime) => {
-        return showtimes.some(st =>
-            st.room?.roomID === parseInt(newShowtime.roomId) &&
-            st.showtimeDate === newShowtime.showtimeDate &&
-            st.showtimeID !== newShowtime.showtimeID &&
-            (
-                (newShowtime.startTime >= st.startTime && newShowtime.startTime < st.endTime) ||
-                (newShowtime.endTime > st.startTime && newShowtime.endTime <= st.endTime) ||
-                (newShowtime.startTime <= st.startTime && newShowtime.endTime >= st.endTime)
-            )
-        );
-    };
-
-    // Tính toán thời gian kết thúc tự động dựa trên duration của phim
-    const calculateEndTime = (startTime, movieId) => {
-        if (!startTime || !movieId) return '';
-
-        const movie = movies.find(m => m.movieID === parseInt(movieId));
-        if (!movie || !movie.duration) return '';
-
-        const [hours, minutes] = startTime.split(':').map(Number);
-        const startDate = new Date();
-        startDate.setHours(hours, minutes, 0, 0);
-
-        const endDate = new Date(startDate.getTime() + movie.duration * 60000); // duration in minutes
-        return endDate.toTimeString().slice(0, 5);
-    };
-
-    // Lọc showtimes cục bộ theo phòng
-    const filteredShowtimes = showtimes.filter(showtime => {
-        if (filters.room && showtime.room?.roomID !== parseInt(filters.room)) {
-            return false;
-        }
-        return true;
-    });
-
-    // Xử lý khi chọn phim - tự động tính endTime
-    const handleMovieChange = (movieId) => {
-        setFormData(prev => ({
-            ...prev,
-            movieId,
-            endTime: calculateEndTime(prev.startTime, movieId)
-        }));
-    };
-
-    // Xử lý khi chọn startTime - tự động tính endTime
-    const handleStartTimeChange = (startTime) => {
-        setFormData(prev => ({
-            ...prev,
-            startTime,
-            endTime: calculateEndTime(startTime, prev.movieId)
-        }));
+    const formatCurrency = (amount) => {
+        if (!amount) return '0 ₫';
+        return new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND'
+        }).format(amount);
     };
 
     // Refresh all data
@@ -323,17 +277,18 @@ const ShowtimeManagement = () => {
                         <div className="flex gap-3">
                             <button
                                 onClick={handleRefreshAll}
-                                className="flex items-center gap-2 bg-white/10 text-white px-4 py-3 rounded-lg hover:bg-white/20 transition-colors"
+                                disabled={loading}
+                                className="flex items-center gap-2 bg-white/10 text-white px-4 py-3 rounded-lg hover:bg-white/20 transition-colors disabled:opacity-50"
                             >
-                                <RefreshCw className="w-5 h-5" />
-                                Làm Mới
+                                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                                {loading ? 'Đang tải...' : 'Làm Mới'}
                             </button>
                             <button
                                 onClick={() => {
                                     resetForm();
                                     setShowModal(true);
                                 }}
-                                disabled={movies.length === 0 || rooms.length === 0}
+                                disabled={movies.length === 0 || rooms.length === 0 || loading}
                                 className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-teal-500 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-teal-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                                 <Plus className="w-5 h-5" />
@@ -373,7 +328,7 @@ const ShowtimeManagement = () => {
                 )}
 
                 {/* Data Status */}
-                <div className="mb-4 grid grid-cols-3 gap-4">
+                <div className="mb-4 grid grid-cols-4 gap-4">
                     <div className="bg-blue-500/10 p-3 rounded-lg border border-blue-500/20 text-center">
                         <div className="text-2xl font-bold text-blue-300">{movies.length}</div>
                         <div className="text-sm text-blue-200">Tổng số phim</div>
@@ -386,75 +341,11 @@ const ShowtimeManagement = () => {
                         <div className="text-2xl font-bold text-purple-300">{showtimes.length}</div>
                         <div className="text-sm text-purple-200">Tổng lịch chiếu</div>
                     </div>
-                </div>
-
-                {/* Filters */}
-                <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-2xl p-6 mb-6 border border-white/20">
-                    <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
-                        <Search className="w-5 h-5" />
-                        Tìm Kiếm & Lọc
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {/* Movie Filter - FIXED */}
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-white">Theo Phim</label>
-                            <select
-                                value={filters.movie}
-                                onChange={(e) => setFilters({ ...filters, movie: e.target.value })}
-                                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                                <option value="">Tất cả phim ({movies.length})</option>
-                                {movies.map(movie => (
-                                    <option key={movie.movieID} value={movie.movieID}>
-                                        {movie.title} {movie.duration && `(${movie.duration} phút)`}
-                                    </option>
-                                ))}
-                            </select>
+                    <div className="bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20 text-center">
+                        <div className="text-2xl font-bold text-yellow-300">
+                            {formatCurrency(showtimes.reduce((total, st) => total + (st.basePrice || 0), 0))}
                         </div>
-
-                        {/* Room Filter - FIXED */}
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-white">Theo Phòng</label>
-                            <select
-                                value={filters.room}
-                                onChange={(e) => setFilters({ ...filters, room: e.target.value })}
-                                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                                <option value="">Tất cả phòng ({rooms.length})</option>
-                                {rooms.map(room => (
-                                    <option key={room.roomID} value={room.roomID}>
-                                        {room.roomName} {room.totalSeats && `(${room.totalSeats} ghế)`}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-white">Theo Ngày</label>
-                            <input
-                                type="date"
-                                value={filters.date}
-                                onChange={(e) => setFilters({ ...filters, date: e.target.value })}
-                                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-
-                        <div className="flex items-end gap-2">
-                            <button
-                                onClick={applyFilters}
-                                className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 flex items-center justify-center gap-2"
-                            >
-                                <Search className="w-4 h-4" />
-                                Tìm Kiếm
-                            </button>
-                            <button
-                                onClick={resetFilters}
-                                className="flex-1 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 flex items-center justify-center gap-2"
-                            >
-                                <RefreshCw className="w-4 h-4" />
-                                Làm Mới
-                            </button>
-                        </div>
+                        <div className="text-sm text-yellow-200">Tổng giá trị</div>
                     </div>
                 </div>
 
@@ -463,7 +354,7 @@ const ShowtimeManagement = () => {
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
                             <Calendar className="w-5 h-5" />
-                            Danh Sách Lịch Chiếu ({filteredShowtimes.length})
+                            Danh Sách Lịch Chiếu ({showtimes.length})
                         </h2>
                         <div className="text-sm text-white/60">
                             {movies.length} phim • {rooms.length} phòng
@@ -475,13 +366,11 @@ const ShowtimeManagement = () => {
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
                             <p className="text-white mt-4">Đang tải dữ liệu...</p>
                         </div>
-                    ) : filteredShowtimes.length === 0 ? (
+                    ) : showtimes.length === 0 ? (
                         <div className="text-center text-white/60 py-16">
                             <Calendar className="w-16 h-16 mx-auto mb-4" />
                             <p>Không có lịch chiếu nào</p>
-                            {showtimes.length === 0 && (
-                                <p className="text-sm mt-2">Hãy thêm lịch chiếu đầu tiên bằng nút "Thêm Lịch Chiếu"</p>
-                            )}
+                            <p className="text-sm mt-2">Hãy thêm lịch chiếu đầu tiên bằng nút "Thêm Lịch Chiếu"</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -493,15 +382,14 @@ const ShowtimeManagement = () => {
                                         <th className="text-left p-4">Phòng</th>
                                         <th className="text-left p-4">Ngày Chiếu</th>
                                         <th className="text-left p-4">Giờ Chiếu</th>
-                                        <th className="text-left p-4">Thời lượng</th>
+                                        <th className="text-left p-4">Giá Vé</th>
                                         <th className="text-left p-4">Mô Tả</th>
                                         <th className="text-left p-4">Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredShowtimes.map(showtime => {
+                                    {showtimes.map(showtime => {
                                         const movie = movies.find(m => m.movieID === showtime.movie?.movieID);
-                                        const duration = movie?.duration || 0;
 
                                         return (
                                             <tr key={showtime.showtimeID} className="border-b border-white/10 hover:bg-white/5">
@@ -540,8 +428,11 @@ const ShowtimeManagement = () => {
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="text-center">
-                                                        <div className="font-semibold">{duration} phút</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <DollarSign className="w-4 h-4 text-green-400" />
+                                                        <div className="font-semibold text-green-300">
+                                                            {formatCurrency(showtime.basePrice)}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 max-w-xs">
@@ -597,13 +488,13 @@ const ShowtimeManagement = () => {
 
                             <form onSubmit={saveShowtime}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                    {/* Movie Selection - FIXED */}
+                                    {/* Movie Selection */}
                                     <div>
                                         <label className="block text-sm font-medium mb-2 text-white">Phim *</label>
                                         <select
                                             value={formData.movieId}
-                                            onChange={(e) => handleMovieChange(e.target.value)}
-                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                            onChange={(e) => setFormData({ ...formData, movieId: e.target.value })}
+                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
                                             required
                                         >
                                             <option value="">-- Chọn phim --</option>
@@ -613,20 +504,15 @@ const ShowtimeManagement = () => {
                                                 </option>
                                             ))}
                                         </select>
-                                        {movies.length === 0 ? (
-                                            <p className="text-red-300 text-sm mt-1">❌ Chưa có phim nào</p>
-                                        ) : (
-                                            <p className="text-green-300 text-sm mt-1">✅ Có {movies.length} phim để chọn</p>
-                                        )}
                                     </div>
 
-                                    {/* Room Selection - FIXED */}
+                                    {/* Room Selection */}
                                     <div>
                                         <label className="block text-sm font-medium mb-2 text-white">Phòng *</label>
                                         <select
                                             value={formData.roomId}
                                             onChange={(e) => setFormData({ ...formData, roomId: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
                                             required
                                         >
                                             <option value="">-- Chọn phòng --</option>
@@ -636,11 +522,6 @@ const ShowtimeManagement = () => {
                                                 </option>
                                             ))}
                                         </select>
-                                        {rooms.length === 0 ? (
-                                            <p className="text-red-300 text-sm mt-1">❌ Chưa có phòng nào</p>
-                                        ) : (
-                                            <p className="text-green-300 text-sm mt-1">✅ Có {rooms.length} phòng để chọn</p>
-                                        )}
                                     </div>
 
                                     <div>
@@ -655,94 +536,73 @@ const ShowtimeManagement = () => {
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-2 text-white">Giờ Bắt Đầu *</label>
+                                    {/* Base Price Field - BẮT BUỘC NHẬP */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2 text-white">
+                                            Giá Vé *
+                                        </label>
+                                        <div className="relative">
+                                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60 w-4 h-4" />
                                             <input
-                                                type="time"
-                                                value={formData.startTime}
-                                                onChange={(e) => handleStartTimeChange(e.target.value)}
-                                                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                                type="number"
+                                                value={formData.basePrice}
+                                                onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
+                                                className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Nhập giá vé..."
+                                                min="0"
+                                                step="1000"
                                                 required
                                             />
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-2 text-white">Giờ Kết Thúc *</label>
-                                            <input
-                                                type="time"
-                                                value={formData.endTime}
-                                                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                                                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                                                required
-                                                readOnly={!!formData.movieId}
-                                            />
-                                            {formData.movieId && (
-                                                <p className="text-xs text-blue-300 mt-1">⏱️ Tự động tính từ thời lượng phim</p>
-                                            )}
-                                        </div>
+                                        <p className="text-xs text-white/60 mt-1">
+                                            Ví dụ: 120000 cho 120,000 ₫
+                                        </p>
                                     </div>
 
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium mb-2 text-white">Mô Tả</label>
-                                        <textarea
-                                            value={formData.description}
-                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2 text-white">Giờ Bắt Đầu *</label>
+                                        <input
+                                            type="time"
+                                            value={formData.startTime}
+                                            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                                             className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                                            rows="3"
-                                            placeholder="Nhập mô tả về lịch chiếu (ví dụ: Suất chiếu đặc biệt, có khuyến mãi...)"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2 text-white">Giờ Kết Thúc *</label>
+                                        <input
+                                            type="time"
+                                            value={formData.endTime}
+                                            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                            required
                                         />
                                     </div>
                                 </div>
 
-                                {/* Hiển thị thông tin phim được chọn */}
-                                {formData.movieId && (
-                                    <div className="mb-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/30">
-                                        <h4 className="font-semibold text-blue-300 mb-2">📽️ Thông tin phim:</h4>
-                                        {(() => {
-                                            const movie = movies.find(m => m.movieID === parseInt(formData.movieId));
-                                            return movie ? (
-                                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                                    <div><span className="text-blue-200">Tên:</span> {movie.title}</div>
-                                                    <div><span className="text-blue-200">Thể loại:</span> {movie.genre}</div>
-                                                    <div><span className="text-blue-200">Thời lượng:</span> {movie.duration} phút</div>
-                                                    <div><span className="text-blue-200">Ngày phát hành:</span> {formatDate(movie.releaseDate)}</div>
-                                                </div>
-                                            ) : null;
-                                        })()}
-                                    </div>
-                                )}
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-2 text-white">Mô Tả</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                                        rows="3"
+                                        placeholder="Nhập mô tả về lịch chiếu (ví dụ: Suất chiếu đặc biệt, có khuyến mãi...)"
+                                    />
+                                </div>
 
-                                {/* Hiển thị thông tin phòng được chọn */}
-                                {formData.roomId && (
-                                    <div className="mb-4 p-4 bg-green-500/10 rounded-lg border border-green-500/30">
-                                        <h4 className="font-semibold text-green-300 mb-2">🎪 Thông tin phòng:</h4>
-                                        {(() => {
-                                            const room = rooms.find(r => r.roomID === parseInt(formData.roomId));
-                                            return room ? (
-                                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                                    <div><span className="text-green-200">Tên:</span> {room.roomName}</div>
-                                                    <div><span className="text-green-200">Loại:</span> {room.roomType}</div>
-                                                    <div><span className="text-green-200">Số ghế:</span> {room.totalSeats}</div>
-                                                    <div><span className="text-green-200">Kích thước:</span> {room.totalRows}×{room.totalColumns}</div>
-                                                </div>
-                                            ) : null;
-                                        })()}
-                                    </div>
-                                )}
-
-                                {/* Conflict Warning */}
-                                {formData.roomId && formData.showtimeDate && formData.startTime && formData.endTime &&
-                                    isTimeConflict(formData) && (
-                                        <div className="mb-4 p-4 bg-red-500/20 border border-red-500 text-white rounded-lg">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-lg">⚠️</span>
-                                                <div>
-                                                    <strong>Cảnh báo xung đột lịch chiếu!</strong>
-                                                    <p className="text-sm mt-1">Lịch chiếu này bị trùng thời gian với lịch chiếu khác trong cùng phòng.</p>
-                                                </div>
-                                            </div>
+                                {/* Hiển thị thông tin giá */}
+                                {formData.basePrice && (
+                                    <div className="mb-4 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                                        <h4 className="font-semibold text-yellow-300 mb-2">💰 Giá vé sẽ áp dụng:</h4>
+                                        <div className="text-center">
+                                            <span className="font-bold text-yellow-300 text-2xl">
+                                                {formatCurrency(formData.basePrice)}
+                                            </span>
                                         </div>
-                                    )}
+                                    </div>
+                                )}
 
                                 <div className="flex gap-3 pt-4 border-t border-white/10">
                                     <button
@@ -754,13 +614,7 @@ const ShowtimeManagement = () => {
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={loading ||
-                                            (formData.roomId && formData.showtimeDate &&
-                                                formData.startTime && formData.endTime &&
-                                                isTimeConflict(formData)) ||
-                                            !formData.movieId || !formData.roomId ||
-                                            !formData.showtimeDate || !formData.startTime || !formData.endTime
-                                        }
+                                        disabled={loading || !formData.movieId || !formData.roomId || !formData.showtimeDate || !formData.startTime || !formData.endTime || !formData.basePrice}
                                         className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:from-green-600 hover:to-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                                     >
                                         <Save className="w-5 h-5" />
