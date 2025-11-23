@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:3000/api"; // backend chạy ở cổng 3000 + prefix /api
+const API_BASE_URL = "http://localhost:8080/api"; 
 
 export const apiRequest = async (endpoint, method = "GET", body = null, token = null) => {
   const headers = { "Content-Type": "application/json" };

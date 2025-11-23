@@ -30,3 +30,245 @@
   opacity: 1;
   background: #fbbf24;
 }
+/* ComboManagement.css */
+.combo-management {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.combo-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2.5rem 0;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.combo-header h1 {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  font-size: 2.5rem;
+}
+
+.combo-header p {
+  opacity: 0.9;
+  margin-bottom: 0;
+  font-size: 1.1rem;
+}
+
+.combo-content {
+  padding-bottom: 3rem;
+}
+
+.combo-action-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+  border: 1px solid #e3e9f1;
+}
+
+.combo-search-box {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.combo-search-box input {
+  flex: 1;
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.combo-search-box input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.combo-form-section, .combo-list-section {
+  background: white;
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  border: 1px solid #e3e9f1;
+}
+
+.combo-form-section h3, .combo-list-section h3 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f8f9fa;
+  font-weight: 600;
+}
+
+.combo-card {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  height: 100%;
+  background: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.combo-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.combo-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+}
+
+.combo-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.combo-title {
+  color: #2c3e50;
+  margin: 0;
+  flex: 1;
+  margin-right: 15px;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.combo-price {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.combo-card-body {
+  margin-bottom: 1.5rem;
+}
+
+.combo-description {
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  min-height: 4.8rem;
+}
+
+.combo-id {
+  text-align: right;
+}
+
+.combo-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.combo-stats {
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  padding: 3rem 1rem;
+}
+
+.alert {
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.form-control {
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.4em 0.6em;
+}
+
+@media (max-width: 768px) {
+  .combo-search-box {
+    flex-direction: column;
+  }
+  
+  .combo-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .combo-price {
+    margin-top: 0.5rem;
+    align-self: flex-start;
+  }
+  
+  .combo-action-section .text-end {
+    text-align: left !important;
+    margin-top: 1rem;
+  }
+  
+  .combo-header h1 {
+    font-size: 2rem;
+  }
+  
+  .combo-form-section, .combo-list-section {
+    padding: 1.5rem;
+  }
+}
+
+/* Loading animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.combo-card {
+  animation: fadeIn 0.5s ease-out;
+}

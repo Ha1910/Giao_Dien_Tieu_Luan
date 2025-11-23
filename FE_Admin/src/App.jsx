@@ -22,7 +22,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/header" element={<Header></Header>}></Route>
         <Route path="/movielist" element={<MovieList></MovieList>}></Route>
-
+        
         {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/input-file" element={<InputField></InputField>} />
