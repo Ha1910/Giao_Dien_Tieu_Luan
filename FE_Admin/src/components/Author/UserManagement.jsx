@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Search, RefreshCw, User, Mail, Shield, Eye, EyeOff, AlertCircle, Lock, Unlock } from 'lucide-react';
+import { Edit2, Save, X, Search, RefreshCw, User, Mail, Shield, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 
-// Cấu hình axios
 const api = axios.create({
     baseURL: 'http://localhost:8080/api',
     headers: {
@@ -10,13 +9,13 @@ const api = axios.create({
     },
 });
 
-// Interceptor thêm token vào mọi request
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        console.log(`🚀 ${config.method?.toUpperCase()} ${config.url}`, config.data);
         return config;
     },
     (error) => Promise.reject(error)
@@ -29,30 +28,21 @@ const UserManagement = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [showPassword, setShowPassword] = useState(false);
 
-    // Form state
     const [formData, setFormData] = useState({
         name: '',
-        email: '',
-        password: '',
-        role: 'CUSTOMER',
-        id: '' // lưu id tạm nếu cần
+        email: ''
     });
 
-    // Filter state
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
 
-    // Helper: normalize user id (hỗ trợ id, userID, _id, userId)
     const getUserId = (u) => {
         if (!u) return undefined;
-        return u.id ?? u.userID ?? u._id ?? u.userId ?? undefined;
+        return u.userID || u.id || u._id || u.userId;
     };
 
-    // Fetch users - ĐÃ SỬA: Dùng endpoint đúng từ API guide
     useEffect(() => {
         fetchUsers();
     }, []);
@@ -61,198 +51,72 @@ const UserManagement = () => {
         setLoading(true);
         setError('');
         try {
-            // Sử dụng endpoint từ API guide: /api/admin/users
-            const response = await api.get('/admin/users');
+            const response = await api.get('/users');
             console.log('✅ Users data:', response.data);
             setUsers(response.data || []);
         } catch (err) {
             console.error('💥 Fetch users error:', err);
-            if (err.response?.status === 403) {
-                setError('Bạn không có quyền truy cập danh sách người dùng!');
-            } else if (err.response?.status === 401) {
-                setError('Vui lòng đăng nhập lại!');
-                localStorage.removeItem('token');
-                window.location.href = '/login';
-            } else {
-                setError('Không thể tải danh sách người dùng: ' + (err.response?.data?.message || err.message));
-            }
+            handleApiError(err);
         } finally {
             setLoading(false);
         }
     };
 
-    // Create user - SỬA: gửi payload đúng theo API guide {name,email,password,role}
-    const createUser = async (userData) => {
-        setModalLoading(true);
-        setError('');
-        try {
-            // Chuẩn payload theo API guide: { name, email, password, role }
-            const payload = {
-                name: userData.name,
-                email: userData.email,
-                password: userData.password,
-                role: userData.role
-            };
-
-            console.log('📤 Sending POST /api/auth/register with payload:', payload);
-
-            // Dùng api để tận dụng baseURL & headers
-            const response = await api.post('/auth/register', payload);
-
-            console.log('✅ Register response:', response.status, response.data);
-
-            // Response theo API guide trả về token + id + name + email + role
-            const created = {
-                id: response.data.id ?? response.data.userID ?? response.data.userId ?? undefined,
-                name: response.data.name ?? payload.name,
-                email: response.data.email ?? payload.email,
-                role: response.data.role ?? payload.role
-            };
-
-            // Thêm user mới vào danh sách local (nếu muốn đồng bộ từ server, gọi fetchUsers() khi có token admin)
-            setUsers(prevUsers => [...prevUsers, created]);
-
-            setSuccess('Thêm người dùng thành công!');
-            closeModal();
-        } catch (err) {
-            // Log chi tiết để biết backend trả cái gì (rất hữu ích khi nhận 400)
-            console.error('Create error (full):', err);
-            console.error('Create error response.data:', err.response?.data);
-            console.error('Create error response.status:', err.response?.status);
-
-            // Hiển thị message cụ thể từ server nếu có, fallback sang chuỗi lỗi
-            const errorMessage =
-                err.response?.data?.message
-                || (typeof err.response?.data === 'string' ? err.response.data : undefined)
-                || err.message
-                || 'Lỗi khi thêm người dùng!';
-            setError(errorMessage);
-        } finally {
-            setModalLoading(false);
+    const handleApiError = (err) => {
+        if (err.response?.status === 403) {
+            setError('Bạn không có quyền thực hiện hành động này!');
+        } else if (err.response?.status === 401) {
+            setError('Vui lòng đăng nhập lại!');
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        } else {
+            setError('Lỗi hệ thống: ' + (err.response?.data?.error || err.message));
         }
     };
 
-    // Update user - SỬA: dùng getUserId để so khớp chính xác
+    // ✅ CÓ API: Cập nhật user
     const updateUser = async (userId, userData) => {
         setModalLoading(true);
+        setError('');
         try {
-            // Nếu backend admin endpoint là /admin/users/:id thì dùng /admin/users/:id
-            // Thay đổi dưới đây nếu API của bạn khác
-            const response = await api.put(`/admin/users/${userId}`, userData);
-            setUsers(prevUsers => prevUsers.map(u => (getUserId(u) === userId ? response.data : u)));
+            const payload = {
+                name: userData.name,
+                email: userData.email
+            };
+
+            const response = await api.put(`/users/${userId}`, payload);
+            console.log('✅ User updated:', response.data);
+
+            setUsers(prevUsers => prevUsers.map(u =>
+                getUserId(u) === userId ? response.data : u
+            ));
+
             setSuccess('Cập nhật người dùng thành công!');
             closeModal();
         } catch (err) {
-            const errorMessage = err.response?.data?.message || 'Lỗi khi cập nhật người dùng!';
-            setError(errorMessage);
             console.error('Update error:', err);
-        } finally {
-            setModalLoading(false);
-        }
-    };
-
-    // Delete user - SỬA: dùng getUserId khi filter
-    const deleteUser = async (userId) => {
-        setModalLoading(true);
-        setError('');
-
-        try {
-            // Nếu backend admin endpoint là /admin/users/:id thì dùng /admin/users/:id
-            await api.delete(`/admin/users/${userId}`);
-
-            setUsers(prevUsers => prevUsers.filter(u => getUserId(u) !== userId));
-            setSuccess('Đã xóa người dùng thành công!');
-            setShowDeleteModal(false);
-            setSelectedUser(null);
-
-        } catch (err) {
-            console.error('Delete error:', err);
-
-            let errorMessage = 'Lỗi khi xóa người dùng!';
-            if (err.response?.status === 403) {
-                errorMessage = 'Bạn không có quyền xóa người dùng này!';
-            } else if (err.response?.status === 404) {
-                errorMessage = 'Không tìm thấy người dùng!';
-            } else if (err.response?.data?.message) {
-                errorMessage = err.response.data.message;
-            }
-
+            const errorMessage = err.response?.data?.error || 'Lỗi khi cập nhật người dùng!';
             setError(errorMessage);
         } finally {
             setModalLoading(false);
         }
     };
 
-    // Update user role - THÊM MỚI: Chức năng cập nhật role từ API guide
+    // ✅ CÓ API: Cập nhật role
     const updateUserRole = async (userId, newRole) => {
         try {
-            // endpoint admin role (dùng PUT với query param theo code gốc)
-            await api.put(`/admin/users/${userId}/role?role=${newRole}`);
+            const response = await api.put(`/users/${userId}/role?role=${newRole}`);
+
             setUsers(prevUsers => prevUsers.map(u =>
-                (getUserId(u) === userId) ? { ...u, role: newRole } : u
+                getUserId(u) === userId ? response.data : u
             ));
             setSuccess(`Đã cập nhật vai trò thành ${newRole}!`);
         } catch (err) {
-            setError('Lỗi khi cập nhật vai trò: ' + (err.response?.data?.message || err.message));
+            const errorMessage = err.response?.data?.error || 'Lỗi khi cập nhật vai trò!';
+            setError(errorMessage);
         }
     };
 
-    // Update user status - THÊM MỚI
-    const updateUserStatus = async (userId, newStatus) => {
-        try {
-            await api.put(`/admin/users/${userId}/status`, { status: newStatus });
-            setUsers(prevUsers => prevUsers.map(u =>
-                (getUserId(u) === userId) ? { ...u, status: newStatus } : u
-            ));
-            setSuccess(`Đã ${newStatus === 'SUSPENDED' ? 'khóa' : 'mở khóa'} tài khoản!`);
-        } catch (err) {
-            setError('Lỗi khi cập nhật trạng thái: ' + (err.response?.data?.message || err.message));
-        }
-    };
-
-    // Search users - THÊM MỚI
-    const searchUsers = async (keyword) => {
-        setLoading(true);
-        try {
-            const response = await api.get(`/admin/users/search?keyword=${encodeURIComponent(keyword)}`);
-            setUsers(response.data || []);
-        } catch (err) {
-            console.error('Search users error:', err);
-            setError('Lỗi khi tìm kiếm người dùng: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Get user details - THÊM MỚI
-    const getUserDetails = async (userId) => {
-        try {
-            const response = await api.get(`/admin/users/${userId}`);
-            return response.data;
-        } catch (err) {
-            console.error('Get user details error:', err);
-            setError('Lỗi khi lấy thông tin chi tiết: ' + (err.response?.data?.message || err.message));
-            return null;
-        }
-    };
-
-    // Handle search - THÊM MỚI
-    const handleSearch = () => {
-        if (searchTerm.trim()) {
-            searchUsers(searchTerm);
-        } else {
-            fetchUsers(); // Load lại toàn bộ nếu search rỗng
-        }
-    };
-
-    // Handle search key press - THÊM MỚI
-    const handleSearchKeyPress = (e) => {
-        if (e.key === 'Enter') {
-            handleSearch();
-        }
-    };
-
-    // Handle submit - ĐÃ SỬA: dùng getUserId(selectedUser)
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -260,11 +124,6 @@ const UserManagement = () => {
         // Validation
         if (!formData.name.trim() || !formData.email.trim()) {
             setError('Vui lòng điền đầy đủ thông tin bắt buộc!');
-            return;
-        }
-
-        if (!selectedUser && !formData.password) {
-            setError('Vui lòng nhập mật khẩu cho người dùng mới!');
             return;
         }
 
@@ -277,66 +136,32 @@ const UserManagement = () => {
 
         const userData = {
             name: formData.name.trim(),
-            email: formData.email.trim(),
-            role: formData.role
+            email: formData.email.trim()
         };
-
-        if (formData.password) {
-            userData.password = formData.password;
-        }
 
         console.log('📤 Submitting user data:', userData);
 
-        if (selectedUser) {
-            const uid = getUserId(selectedUser);
-            if (!uid) {
-                setError('Không tìm thấy ID người dùng để cập nhật.');
-                return;
-            }
-            await updateUser(uid, userData);
-        } else {
-            await createUser(userData);
-        }
+        const uid = getUserId(selectedUser);
+        await updateUser(uid, userData);
     };
 
-    // Open modal for edit - SỬA: lưu id vào formData để an toàn
     const openEditModal = (user) => {
         setSelectedUser(user);
         setFormData({
-            id: getUserId(user) || '',
             name: user.name || '',
-            email: user.email || '',
-            password: '',
-            role: user.role || 'CUSTOMER'
+            email: user.email || ''
         });
         setShowModal(true);
         setError('');
     };
 
-    // Open modal for create
-    const openCreateModal = () => {
-        setSelectedUser(null);
-        setFormData({
-            id: '',
-            name: '',
-            email: '',
-            password: '',
-            role: 'CUSTOMER'
-        });
-        setShowModal(true);
-        setError('');
-    };
-
-    // Close modal
     const closeModal = () => {
         setShowModal(false);
         setSelectedUser(null);
-        setFormData({ id: '', name: '', email: '', password: '', role: 'CUSTOMER' });
-        setShowPassword(false);
+        setFormData({ name: '', email: '' });
         setError('');
     };
 
-    // Filter users
     const filteredUsers = users.filter(user => {
         const matchesSearch = user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -344,7 +169,6 @@ const UserManagement = () => {
         return matchesSearch && matchesRole;
     });
 
-    // Get role badge
     const getRoleBadge = (role) => {
         const colors = {
             ADMIN: 'bg-red-500/20 text-red-300 border-red-500/30',
@@ -359,35 +183,23 @@ const UserManagement = () => {
         );
     };
 
-    // Get status badge - THÊM MỚI
-    const getStatusBadge = (status) => {
-        const colors = {
-            ACTIVE: 'bg-green-500/20 text-green-300 border-green-500/30',
-            SUSPENDED: 'bg-red-500/20 text-red-300 border-red-500/30',
-            INACTIVE: 'bg-gray-500/20 text-gray-300 border-gray-500/30'
-        };
-        const labels = {
-            ACTIVE: 'Hoạt động',
-            SUSPENDED: 'Đã khóa',
-            INACTIVE: 'Không hoạt động'
-        };
+    const getStatusBadge = (user) => {
+        const isEnabled = user.enabled !== false;
         return (
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${colors[status] || colors.INACTIVE}`}>
-                {labels[status] || status}
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${isEnabled
+                ? 'bg-green-500/20 text-green-300 border-green-500/30'
+                : 'bg-red-500/20 text-red-300 border-red-500/30'
+                }`}>
+                {isEnabled ? 'Hoạt động' : 'Đã khóa'}
             </span>
         );
     };
 
-    // Quick role update dropdown - THÊM MỚI
     const RoleUpdateDropdown = ({ user, onRoleUpdate }) => {
         const [isOpen, setIsOpen] = useState(false);
 
         const handleRoleChange = async (newRole) => {
             const uid = getUserId(user);
-            if (!uid) {
-                setError('Không có ID để cập nhật vai trò.');
-                return;
-            }
             await onRoleUpdate(uid, newRole);
             setIsOpen(false);
         };
@@ -428,42 +240,13 @@ const UserManagement = () => {
         );
     };
 
-    // Status toggle button - THÊM MỚI
-    const StatusToggleButton = ({ user, onStatusUpdate }) => {
-        const currentStatus = user.status || 'ACTIVE';
-        const isActive = currentStatus === 'ACTIVE';
-
-        const handleToggle = async () => {
-            const uid = getUserId(user);
-            if (!uid) {
-                setError('Không có ID để cập nhật trạng thái.');
-                return;
-            }
-            await onStatusUpdate(uid, isActive ? 'SUSPENDED' : 'ACTIVE');
-        };
-
-        return (
-            <button
-                onClick={handleToggle}
-                className={`p-1 rounded-lg transition-colors ${isActive
-                        ? 'bg-green-500/20 hover:bg-green-500/30 text-green-300'
-                        : 'bg-red-500/20 hover:bg-red-500/30 text-red-300'
-                    }`}
-                title={isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-            >
-                {isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-            </button>
-        );
-    };
-
-    // Stats
     const stats = {
         total: users.length,
         admin: users.filter(u => u.role === 'ADMIN').length,
         staff: users.filter(u => u.role === 'STAFF').length,
         customer: users.filter(u => u.role === 'CUSTOMER').length,
-        active: users.filter(u => (u.status || 'ACTIVE') === 'ACTIVE').length,
-        suspended: users.filter(u => u.status === 'SUSPENDED').length,
+        active: users.filter(u => u.enabled !== false).length,
+        suspended: users.filter(u => u.enabled === false).length,
     };
 
     return (
@@ -488,13 +271,6 @@ const UserManagement = () => {
                             >
                                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                                 {loading ? 'Đang tải...' : 'Làm mới'}
-                            </button>
-                            <button
-                                onClick={openCreateModal}
-                                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg transition-all"
-                            >
-                                <Plus className="w-5 h-5" />
-                                Thêm người dùng
                             </button>
                         </div>
                     </div>
@@ -558,7 +334,6 @@ const UserManagement = () => {
                                 placeholder="Tìm theo tên hoặc email..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                onKeyPress={handleSearchKeyPress}
                                 className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
@@ -577,7 +352,7 @@ const UserManagement = () => {
                         </div>
                         <div>
                             <button
-                                onClick={handleSearch}
+                                onClick={fetchUsers}
                                 disabled={loading}
                                 className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                             >
@@ -622,8 +397,7 @@ const UserManagement = () => {
                                 </thead>
                                 <tbody>
                                     {filteredUsers.map((user) => {
-                                        const uid = getUserId(user) || 'unknown';
-                                        const status = user.status || 'ACTIVE';
+                                        const uid = getUserId(user);
                                         return (
                                             <tr key={uid} className="border-t border-white/10 hover:bg-white/5 transition-colors">
                                                 <td className="p-4 text-white/80 font-mono text-sm">{uid}</td>
@@ -651,13 +425,7 @@ const UserManagement = () => {
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <div className="flex items-center gap-2">
-                                                        {getStatusBadge(status)}
-                                                        <StatusToggleButton
-                                                            user={user}
-                                                            onStatusUpdate={updateUserStatus}
-                                                        />
-                                                    </div>
+                                                    {getStatusBadge(user)}
                                                 </td>
                                                 <td className="p-4">
                                                     <div className="flex justify-center gap-2">
@@ -667,16 +435,6 @@ const UserManagement = () => {
                                                             title="Chỉnh sửa"
                                                         >
                                                             <Edit2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedUser(user);
-                                                                setShowDeleteModal(true);
-                                                            }}
-                                                            className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
-                                                            title="Xóa"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -689,13 +447,13 @@ const UserManagement = () => {
                     )}
                 </div>
 
-                {/* Create/Edit Modal */}
+                {/* Edit Modal */}
                 {showModal && (
                     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                         <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-white/20 shadow-2xl">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-2xl font-bold text-white">
-                                    {selectedUser ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
+                                    Chỉnh sửa người dùng
                                 </h2>
                                 <button onClick={closeModal} className="text-white/70 hover:text-white">
                                     <X className="w-6 h-6" />
@@ -727,43 +485,13 @@ const UserManagement = () => {
                                     />
                                 </div>
 
+                                {/* Hiển thị vai trò (chỉ xem, không chỉnh sửa) */}
                                 <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">
-                                        {selectedUser ? 'Mật khẩu mới (để trống nếu không đổi)' : 'Mật khẩu *'}
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type={showPassword ? 'text' : 'password'}
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12"
-                                            placeholder={selectedUser ? 'Nhập mật khẩu mới' : 'Nhập mật khẩu'}
-                                            required={!selectedUser}
-                                            minLength={6}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowPassword(!showPassword)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
-                                        >
-                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                        </button>
+                                    <label className="block text-white/80 mb-2 text-sm font-medium">Vai trò</label>
+                                    <div className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white">
+                                        {getRoleBadge(selectedUser?.role)}
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Vai trò *</label>
-                                    <select
-                                        value={formData.role}
-                                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        required
-                                    >
-                                        <option value="CUSTOMER">Khách hàng</option>
-                                        <option value="STAFF">Nhân viên</option>
-                                        <option value="ADMIN">Quản trị viên</option>
-                                        <option value="GUEST">Khách vãng lai</option>
-                                    </select>
+                                    <p className="text-white/50 text-xs mt-1">Vai trò không thể thay đổi</p>
                                 </div>
 
                                 <div className="flex gap-3 pt-4">
@@ -781,61 +509,10 @@ const UserManagement = () => {
                                         className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         <Save className="w-5 h-5" />
-                                        {modalLoading ? 'Đang xử lý...' : selectedUser ? 'Cập nhật' : 'Thêm mới'}
+                                        {modalLoading ? 'Đang xử lý...' : 'Cập nhật'}
                                     </button>
                                 </div>
                             </form>
-                        </div>
-                    </div>
-                )}
-
-                {/* Delete Confirmation Modal - ĐÃ SỬA */}
-                {showDeleteModal && selectedUser && (
-                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-white/20 shadow-2xl">
-                            <div className="text-center">
-                                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Trash2 className="w-8 h-8 text-red-400" />
-                                </div>
-                                <h3 className="text-xl font-bold text-white mb-2">Xác nhận xóa</h3>
-                                <p className="text-white/70 mb-6">
-                                    Bạn có chắc chắn muốn xóa người dùng <strong className="text-white">{selectedUser.name}</strong>?
-                                    <br />Hành động này không thể hoàn tác!
-                                </p>
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => {
-                                            setShowDeleteModal(false);
-                                            setSelectedUser(null);
-                                        }}
-                                        disabled={modalLoading}
-                                        className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors disabled:opacity-50"
-                                    >
-                                        Hủy
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            const uid = getUserId(selectedUser);
-                                            if (!uid) {
-                                                setError('Không có ID để xóa người dùng này.');
-                                                return;
-                                            }
-                                            deleteUser(uid);
-                                        }}
-                                        disabled={modalLoading}
-                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        {modalLoading ? (
-                                            <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                                Đang xóa...
-                                            </>
-                                        ) : (
-                                            'Xóa'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 )}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Film, AlertCircle } from "lucide-react";
 
 const Login = () => {
     const dispatch = useDispatch();
@@ -25,7 +26,7 @@ const Login = () => {
             console.log("Đang gửi request đăng nhập:", form);
 
             const res = await axios.post(
-                "http://localhost:8080/api/auth/login", 
+                "http://localhost:8080/api/auth/login",
                 {
                     email: form.email,
                     password: form.password
@@ -92,85 +93,93 @@ const Login = () => {
     };
 
     return (
-        <div className="flex justify-center items-center min-h-screen bg-gray-50">
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-200"
-            >
-                <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-                    Đăng nhập Hệ thống
-                </h2>
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
+            <div className="max-w-md w-full">
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <div className="flex justify-center items-center gap-3 mb-4">
+                        <div className="p-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg">
+                            <Film className="w-8 h-8" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-white">CinemaPro</h1>
+                    </div>
+                    <p className="text-white/70">Hệ thống quản lý rạp chiếu phim</p>
+                </div>
 
-                {error && (
-                    <p className="text-red-600 bg-red-50 p-3 rounded-lg text-sm text-center mb-4 border border-red-200">
-                        {error}
+                {/* Login Form */}
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
+                    <h2 className="text-2xl font-bold text-white text-center mb-6">
+                        Đăng nhập hệ thống
+                    </h2>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-3 text-white backdrop-blur-lg">
+                            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <span className="text-sm">{error}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-white/80 mb-2 text-sm font-medium">
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                name="email"
+                                value={form.email}
+                                onChange={handleChange}
+                                required
+                                placeholder="Nhập email của bạn"
+                                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-white/80 mb-2 text-sm font-medium">
+                                Mật khẩu
+                            </label>
+                            <input
+                                type="password"
+                                name="password"
+                                value={form.password}
+                                onChange={handleChange}
+                                required
+                                placeholder="Nhập mật khẩu"
+                                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full py-4 rounded-xl font-bold text-white text-lg transition-all duration-300 shadow-lg ${loading
+                                ? "bg-gray-500/50 cursor-not-allowed opacity-70"
+                                : "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 active:scale-95"
+                                }`}
+                        >
+                            {loading ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    Đang đăng nhập...
+                                </div>
+                            ) : (
+                                "Đăng nhập"
+                            )}
+                        </button>
+                    </form>
+
+
+
+                </div>
+
+                {/* Footer */}
+                <div className="text-center mt-6">
+                    <p className="text-white/50 text-sm">
+                        © 2024 CinemaPro. Hệ thống quản lý rạp chiếu phim.
                     </p>
-                )}
-
-                <div className="mb-5">
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                    </label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        value={form.email}
-                        onChange={handleChange}
-                        required
-                        placeholder="Nhập email của bạn"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-                    />
                 </div>
-
-                <div className="mb-5">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                        Mật khẩu
-                    </label>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        value={form.password}
-                        onChange={handleChange}
-                        required
-                        placeholder="Nhập mật khẩu"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-                    />
-                </div>
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className={`w-full mt-6 py-3 rounded-lg font-bold text-white text-lg 
-                        transition-all duration-300 shadow-md
-                        ${loading
-                            ? "bg-gray-400 cursor-not-allowed opacity-70"
-                            : "bg-blue-500 hover:bg-blue-600 active:bg-blue-700"
-                        }`}
-                >
-                    {loading ? "Đang đăng nhập..." : "Đăng nhập"}
-                </button>
-
-                <div className="flex justify-between mt-5 text-sm">
-                    <button
-                        type="button"
-                        onClick={() => navigate("/forgot-password")}
-                        className="text-blue-600 hover:underline font-medium"
-                    >
-                        Quên mật khẩu?
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => navigate("/register")}
-                        className="text-blue-600 hover:underline font-medium"
-                    >
-                        Đăng ký tài khoản
-                    </button>
-                </div>
-
-
-            </form>
+            </div>
         </div>
     );
 };

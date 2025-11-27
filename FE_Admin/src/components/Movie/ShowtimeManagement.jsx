@@ -494,7 +494,7 @@ const ShowtimeManagement = () => {
                                         <select
                                             value={formData.movieId}
                                             onChange={(e) => setFormData({ ...formData, movieId: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                                            className="w-full px-4 py-2 bg-black/10 border border-black/20 rounded-lg text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
                                             required
                                         >
                                             <option value="">-- Chọn phim --</option>
