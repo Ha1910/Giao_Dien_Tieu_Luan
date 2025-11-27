@@ -370,13 +370,7 @@ const StatisticsManagement = () => {
                                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                                 {loading ? 'Đang tải...' : 'Làm mới'}
                             </button>
-                            <button
-                                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50"
-                                disabled={loading}
-                            >
-                                <Download className="w-5 h-5" />
-                                Xuất báo cáo
-                            </button>
+                            {/* ĐÃ XÓA NÚT XUẤT EXCEL */}
                         </div>
                     </div>
                 </div>

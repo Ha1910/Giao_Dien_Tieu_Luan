@@ -387,9 +387,9 @@ const PromotionManagement = () => {
                             onChange={(e) => setFilterStatus(e.target.value)}
                             className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="all">Tất cả</option>
-                            <option value="active">Đang hoạt động</option>
-                            <option value="expired">Đã hết hạn</option>
+                            <option value="all" className="bg-gray-900 text-white">Tất cả</option>
+                            <option value="active" className="bg-gray-900 text-green-400">Đang hoạt động</option>
+                            <option value="expired" className="bg-gray-900 text-red-400">Đã hết hạn</option>
                         </select>
                         <button
                             onClick={filterStatus === 'active' ? fetchActivePromotions : fetchPromotions}

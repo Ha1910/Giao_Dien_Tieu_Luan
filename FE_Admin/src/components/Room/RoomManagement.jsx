@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Save, X, Copy, Grid, Sofa, Monitor, Settings } from 'lucide-react';
 import axios from 'axios';
 
@@ -33,6 +33,65 @@ api.interceptors.response.use(
     }
 );
 
+// Component Seat riêng biệt với React.memo
+const Seat = React.memo(({ seat, onClick, mode }) => {
+    const getSeatWidth = (seat) => {
+        if (seat.isCouple && seat.exists) return 'w-20';
+        return 'w-10';
+    };
+
+    const getSeatStyle = (seat) => {
+        if (!seat.exists || seat.partOfCouple) return 'bg-transparent border-transparent';
+
+        const SEAT_TYPES = {
+            STANDARD: { color: 'bg-gray-100 border-gray-300 text-gray-700', colorActive: 'bg-green-500 text-white' },
+            COUPLE: { color: 'bg-pink-100 border-pink-300 text-pink-700', colorActive: 'bg-pink-500 text-white' },
+            PREMIUM: { color: 'bg-yellow-100 border-yellow-400 text-yellow-800', colorActive: 'bg-yellow-500 text-white' },
+            VIP: { color: 'bg-purple-100 border-purple-300 text-purple-700', colorActive: 'bg-purple-500 text-white' }
+        };
+
+        const typeStyle = SEAT_TYPES[seat.seatType] || SEAT_TYPES.STANDARD;
+
+        if (seat.status === 'AVAILABLE') {
+            return `${typeStyle.color} border-2 hover:scale-110 transition-transform cursor-pointer`;
+        }
+        return typeStyle.colorActive;
+    };
+
+    const getSeatDisplay = (seat) => {
+        if (!seat.exists || seat.partOfCouple) return '';
+
+        const SEAT_ICONS = {
+            STANDARD: '💺',
+            COUPLE: '❤️',
+            PREMIUM: '⭐',
+            VIP: '👑'
+        };
+
+        const icon = SEAT_ICONS[seat.seatType] || '';
+
+        if (seat.isCouple) {
+            return <span className="text-xs">{icon}</span>;
+        }
+
+        return <span className="text-xs">{seat.column}</span>;
+    };
+
+    const width = getSeatWidth(seat);
+    const style = getSeatStyle(seat);
+    const display = getSeatDisplay(seat);
+
+    return (
+        <button
+            onClick={onClick}
+            className={`${width} h-10 rounded flex items-center justify-center text-xs font-semibold transition-all ${style} shadow-md`}
+            title={seat.exists ? `${seat.seatNumber}` : 'Click để thêm ghế'}
+        >
+            {display}
+        </button>
+    );
+});
+
 const SmartRoomManagement = () => {
     const [rooms, setRooms] = useState([]);
     const [selectedRoom, setSelectedRoom] = useState(null);
@@ -65,14 +124,14 @@ const SmartRoomManagement = () => {
     });
 
     const [seatGrid, setSeatGrid] = useState([]);
-    const [seatMode, setSeatMode] = useState('single'); // single, couple, premium, aisle
-    const [premiumZone, setPremiumZone] = useState({ start: null, end: null });
+    const [seatMode, setSeatMode] = useState('single');
+    const [isLoadingGrid, setIsLoadingGrid] = useState(false);
 
-    // Price Configuration - Riêng cho từng phòng
+    // Price Configuration
     const [roomPriceConfig, setRoomPriceConfig] = useState({});
 
-    // Seat Types với màu sắc (giá sẽ lấy từ roomPriceConfig)
-    const SEAT_TYPES = {
+    // Seat Types với màu sắc
+    const SEAT_TYPES = useMemo(() => ({
         STANDARD: {
             name: 'Ghế Thường',
             color: 'bg-gray-100 border-gray-300 text-gray-700',
@@ -84,7 +143,7 @@ const SmartRoomManagement = () => {
             color: 'bg-pink-100 border-pink-300 text-pink-700',
             colorActive: 'bg-pink-500 text-white',
             icon: '❤️',
-            width: 2 // Ghế đôi chiếm 2 cột
+            width: 2
         },
         PREMIUM: {
             name: 'Khu Trung Tâm',
@@ -98,18 +157,18 @@ const SmartRoomManagement = () => {
             colorActive: 'bg-purple-500 text-white',
             icon: '👑'
         }
-    };
+    }), []);
 
     // Giá mặc định
-    const DEFAULT_PRICES = {
+    const DEFAULT_PRICES = useMemo(() => ({
         STANDARD: 1.0,
         VIP: 1.5,
         COUPLE: 2.0,
         PREMIUM: 1.3
-    };
+    }), []);
 
     // Templates
-    const TEMPLATES = {
+    const TEMPLATES = useMemo(() => ({
         standard: {
             name: 'Standard Cinema',
             rows: 14,
@@ -135,12 +194,11 @@ const SmartRoomManagement = () => {
             ],
             premiumZone: { rows: [6, 7, 8, 9, 10], columns: [7, 8, 9, 10, 11, 12, 13] }
         }
-    };
+    }), []);
 
     // Fetch rooms
     useEffect(() => {
         fetchRooms();
-        // Load price config từ localStorage nếu có
         const savedPriceConfig = localStorage.getItem('roomPriceConfig');
         if (savedPriceConfig) {
             setRoomPriceConfig(JSON.parse(savedPriceConfig));
@@ -153,12 +211,12 @@ const SmartRoomManagement = () => {
     }, [roomPriceConfig]);
 
     // Hàm lấy giá cho từng phòng
-    const getRoomPriceConfig = (roomId) => {
+    const getRoomPriceConfig = useCallback((roomId) => {
         return roomPriceConfig[roomId] || DEFAULT_PRICES;
-    };
+    }, [roomPriceConfig, DEFAULT_PRICES]);
 
     // Hàm cập nhật giá cho phòng
-    const updateRoomPriceConfig = (roomId, seatType, value) => {
+    const updateRoomPriceConfig = useCallback((roomId, seatType, value) => {
         setRoomPriceConfig(prev => ({
             ...prev,
             [roomId]: {
@@ -166,15 +224,15 @@ const SmartRoomManagement = () => {
                 [seatType]: parseFloat(value) || 0
             }
         }));
-    };
+    }, [getRoomPriceConfig]);
 
     // Reset giá về mặc định cho phòng
-    const resetRoomPriceConfig = (roomId) => {
+    const resetRoomPriceConfig = useCallback((roomId) => {
         setRoomPriceConfig(prev => ({
             ...prev,
             [roomId]: DEFAULT_PRICES
         }));
-    };
+    }, [DEFAULT_PRICES]);
 
     const fetchRooms = async () => {
         setLoading(true);
@@ -195,8 +253,9 @@ const SmartRoomManagement = () => {
             setSeats(response.data);
             setSelectedRoom(roomId);
 
-            const grid = convertSeatsToGrid(response.data);
-            setSeatGrid(grid);
+            // Tạo grid đơn giản để hiển thị - FIXED
+            const simpleGrid = createSimpleGridForDisplay(response.data);
+            setSeatGrid(simpleGrid);
         } catch (err) {
             setError('Lỗi khi tải danh sách ghế: ' + (err.response?.data?.message || err.message));
         } finally {
@@ -204,27 +263,29 @@ const SmartRoomManagement = () => {
         }
     };
 
-    const convertSeatsToGrid = (seatsData) => {
-        const grid = {};
+    // Hàm tạo grid đơn giản để hiển thị BÊN NGOÀI - FIXED
+    const createSimpleGridForDisplay = (seatsData) => {
+        const rows = {};
+
+        // Nhóm ghế theo hàng
         seatsData.forEach(seat => {
-            const match = seat.seatNumber.match(/^([A-Z]+)(\d+)$/);
-            if (match) {
-                const row = match[1];
-                const col = parseInt(match[2]);
-                if (!grid[row]) grid[row] = {};
-                grid[row][col] = seat;
+            const rowChar = seat.seatNumber.charAt(0);
+            const col = parseInt(seat.seatNumber.slice(1)) || 1;
+
+            if (!rows[rowChar]) {
+                rows[rowChar] = {};
             }
+            rows[rowChar][col] = seat;
         });
-        return grid;
+
+        return rows;
     };
 
-    // Initialize seat grid
-    const initializeSeatGrid = (template = null) => {
+    // Initialize seat grid nhanh - CHO LAYOUT DESIGNER
+    const initializeSeatGridFast = useCallback((template = null) => {
         const config = template || layoutConfig;
         const grid = [];
         const rowLabels = config.rowLabels || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-        // Lấy cấu hình giá của phòng hiện tại
         const currentPriceConfig = selectedRoom ? getRoomPriceConfig(selectedRoom) : DEFAULT_PRICES;
 
         for (let i = 0; i < config.rows; i++) {
@@ -275,71 +336,138 @@ const SmartRoomManagement = () => {
         }
 
         setSeatGrid(grid);
-    };
+    }, [layoutConfig, selectedRoom, getRoomPriceConfig, DEFAULT_PRICES]);
 
-    // Toggle seat or change type
-    const handleSeatClick = (rowIndex, colIndex) => {
-        const newGrid = JSON.parse(JSON.stringify(seatGrid));
-        const seat = newGrid[rowIndex][colIndex];
-
-        // Lấy cấu hình giá của phòng hiện tại
-        const currentPriceConfig = getRoomPriceConfig(selectedRoom);
-
-        if (seatMode === 'aisle') {
-            // Toggle existence (create aisle)
-            seat.exists = !seat.exists;
-            if (!seat.exists) {
-                seat.seatType = 'STANDARD';
-                seat.isCouple = false;
-            }
-        } else if (seatMode === 'couple') {
-            // Create couple seat (merges with next seat)
-            if (seat.exists && colIndex < seatGrid[rowIndex].length - 1) {
-                seat.seatType = 'COUPLE';
-                seat.isCouple = true;
-                seat.priceMultiplier = currentPriceConfig.COUPLE || 2.0;
-                // Mark next seat as part of couple
-                const nextSeat = newGrid[rowIndex][colIndex + 1];
-                if (nextSeat && nextSeat.exists) {
-                    nextSeat.exists = false; // Hide next seat visually
-                    nextSeat.partOfCouple = true;
-                }
-            }
-        } else if (seatMode === 'premium') {
-            if (seat.exists) {
-                seat.seatType = 'PREMIUM';
-                seat.isPremium = true;
-                seat.priceMultiplier = currentPriceConfig.PREMIUM || 1.3;
-            }
-        } else if (seatMode === 'single') {
-            if (seat.exists) {
-                // Cycle through types
-                const types = ['STANDARD', 'VIP'];
-                const currentIndex = types.indexOf(seat.seatType);
-                const nextType = types[(currentIndex + 1) % types.length];
-                seat.seatType = nextType;
-                seat.priceMultiplier = currentPriceConfig[nextType] || 1.0;
-            } else {
-                seat.exists = true;
-                seat.seatType = 'STANDARD';
-                seat.priceMultiplier = currentPriceConfig.STANDARD || 1.0;
-            }
+    // Hàm load seats nhanh - CHO LAYOUT DESIGNER
+    const loadExistingSeatsFast = useCallback(() => {
+        if (seats.length === 0) {
+            initializeSeatGridFast();
+            return;
         }
 
+        const rowMap = new Map();
+        let maxColumn = 0;
+
+        // Chỉ 1 vòng lặp duy nhất - SIÊU NHANH
+        seats.forEach(seat => {
+            const row = seat.seatNumber.charAt(0);
+            const col = parseInt(seat.seatNumber.slice(1)) || 1;
+
+            if (!rowMap.has(row)) {
+                rowMap.set(row, new Map());
+            }
+            rowMap.get(row).set(col, seat);
+
+            if (col > maxColumn) maxColumn = col;
+        });
+
+        const rows = Array.from(rowMap.keys()).sort();
+        const currentPriceConfig = getRoomPriceConfig(selectedRoom);
+        const newGrid = [];
+
+        rows.forEach(rowChar => {
+            const rowData = [];
+            const rowSeats = rowMap.get(rowChar);
+
+            for (let col = 1; col <= maxColumn; col++) {
+                const seat = rowSeats?.get(col);
+                if (seat) {
+                    rowData.push({
+                        row: rowChar,
+                        column: col,
+                        seatNumber: `${rowChar}${col}`,
+                        exists: true,
+                        status: seat.status || 'AVAILABLE',
+                        seatType: seat.seatType || 'STANDARD',
+                        priceMultiplier: seat.priceMultiplier || currentPriceConfig[seat.seatType] || 1.0,
+                        isCouple: seat.seatType === 'COUPLE',
+                        isPremium: seat.seatType === 'PREMIUM'
+                    });
+                } else {
+                    // Tạo seat trống
+                    rowData.push({
+                        row: rowChar,
+                        column: col,
+                        seatNumber: `${rowChar}${col}`,
+                        exists: false,
+                        status: 'AVAILABLE',
+                        seatType: 'STANDARD',
+                        priceMultiplier: 1.0,
+                        isCouple: false,
+                        isPremium: false
+                    });
+                }
+            }
+            newGrid.push(rowData);
+        });
+
         setSeatGrid(newGrid);
-    };
+    }, [seats, selectedRoom, getRoomPriceConfig, initializeSeatGridFast]);
+
+    // Toggle seat or change type - TỐI ƯU
+    const handleSeatClick = useCallback((rowIndex, colIndex) => {
+        setSeatGrid(currentGrid => {
+            const newGrid = currentGrid.map(row => [...row]);
+            const seat = newGrid[rowIndex][colIndex];
+            const currentPriceConfig = getRoomPriceConfig(selectedRoom);
+
+            if (seatMode === 'aisle') {
+                seat.exists = !seat.exists;
+                if (!seat.exists) {
+                    seat.seatType = 'STANDARD';
+                    seat.isCouple = false;
+                }
+            } else if (seatMode === 'couple') {
+                if (seat.exists && colIndex < currentGrid[rowIndex].length - 1) {
+                    seat.seatType = 'COUPLE';
+                    seat.isCouple = true;
+                    seat.priceMultiplier = currentPriceConfig.COUPLE || 2.0;
+                    const nextSeat = newGrid[rowIndex][colIndex + 1];
+                    if (nextSeat && nextSeat.exists) {
+                        nextSeat.exists = false;
+                        nextSeat.partOfCouple = true;
+                    }
+                }
+            } else if (seatMode === 'premium') {
+                if (seat.exists) {
+                    seat.seatType = 'PREMIUM';
+                    seat.isPremium = true;
+                    seat.priceMultiplier = currentPriceConfig.PREMIUM || 1.3;
+                }
+            } else if (seatMode === 'single') {
+                if (seat.exists) {
+                    const types = ['STANDARD', 'VIP'];
+                    const currentIndex = types.indexOf(seat.seatType);
+                    const nextType = types[(currentIndex + 1) % types.length];
+                    seat.seatType = nextType;
+                    seat.priceMultiplier = currentPriceConfig[nextType] || 1.0;
+                } else {
+                    seat.exists = true;
+                    seat.seatType = 'STANDARD';
+                    seat.priceMultiplier = currentPriceConfig.STANDARD || 1.0;
+                }
+            }
+
+            return newGrid;
+        });
+    }, [seatMode, selectedRoom, getRoomPriceConfig]);
 
     // Apply template
-    const applyTemplate = (templateKey) => {
+    const applyTemplate = useCallback((templateKey) => {
         const template = TEMPLATES[templateKey];
         setLayoutConfig({
             rows: template.rows,
             columns: template.columns,
             rowLabels: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.substring(0, template.rows)
         });
-        initializeSeatGrid(template);
+
+        // Dùng setTimeout để không block UI
+        setTimeout(() => {
+            initializeSeatGridFast(template);
+        }, 0);
+
         setShowTemplateModal(false);
-    };
+    }, [TEMPLATES, initializeSeatGridFast]);
 
     // Save layout to database
     const saveLayoutToDatabase = async () => {
@@ -363,15 +491,17 @@ const SmartRoomManagement = () => {
 
             seatGrid.forEach(row => {
                 row.forEach(seat => {
-                    layoutData.seats.push({
-                        seatNumber: seat.seatNumber,
-                        rowLabel: seat.row,
-                        columnNumber: seat.column,
-                        seatType: seat.seatType || 'STANDARD',
-                        status: seat.status || 'AVAILABLE',
-                        priceMultiplier: seat.priceMultiplier || 1.0,
-                        exists: seat.exists && !seat.partOfCouple
-                    });
+                    if (seat.exists && !seat.partOfCouple) {
+                        layoutData.seats.push({
+                            seatNumber: seat.seatNumber,
+                            rowLabel: seat.row,
+                            columnNumber: seat.column,
+                            seatType: seat.seatType || 'STANDARD',
+                            status: seat.status || 'AVAILABLE',
+                            priceMultiplier: seat.priceMultiplier || 1.0,
+                            exists: true
+                        });
+                    }
                 });
             });
 
@@ -450,110 +580,76 @@ const SmartRoomManagement = () => {
         });
     };
 
+    // OPEN LAYOUT DESIGNER - ĐÃ TỐI ƯU
     const openLayoutDesigner = () => {
         if (!selectedRoom) {
             setError('Vui lòng chọn phòng trước!');
             return;
         }
 
-        if (seats.length > 0) {
-            const existingGrid = [];
-            const seatsByRow = {};
-
-            seats.forEach(seat => {
-                const match = seat.seatNumber.match(/^([A-Z]+)(\d+)$/);
-                if (match) {
-                    const row = match[1];
-                    if (!seatsByRow[row]) seatsByRow[row] = [];
-                    seatsByRow[row].push({ ...seat, column: parseInt(match[2]) });
-                }
-            });
-
-            const rowLabels = Object.keys(seatsByRow).sort();
-            let maxCol = 0;
-            Object.values(seatsByRow).forEach(row => {
-                row.forEach(seat => {
-                    if (seat.column > maxCol) maxCol = seat.column;
-                });
-            });
-
-            // Lấy cấu hình giá của phòng hiện tại
-            const currentPriceConfig = getRoomPriceConfig(selectedRoom);
-
-            rowLabels.forEach(rowLabel => {
-                const row = [];
-                for (let col = 1; col <= maxCol; col++) {
-                    const seat = seatsByRow[rowLabel].find(s => s.column === col);
-                    row.push({
-                        row: rowLabel,
-                        column: col,
-                        seatNumber: `${rowLabel}${col}`,
-                        exists: !!seat,
-                        status: seat?.status || 'AVAILABLE',
-                        seatType: seat?.seatType || 'STANDARD',
-                        priceMultiplier: seat?.priceMultiplier || (currentPriceConfig[seat?.seatType] || 1.0),
-                        seatID: seat?.seatID,
-                        isCouple: seat?.seatType === 'COUPLE',
-                        isPremium: seat?.seatType === 'PREMIUM'
-                    });
-                }
-                existingGrid.push(row);
-            });
-
-            setSeatGrid(existingGrid);
-        } else {
-            initializeSeatGrid();
-        }
-
         setShowLayoutDesigner(true);
+        setIsLoadingGrid(true);
+
+        // Dùng setTimeout để không block UI
+        setTimeout(() => {
+            if (seats.length > 0) {
+                loadExistingSeatsFast();
+            } else {
+                initializeSeatGridFast();
+            }
+            setIsLoadingGrid(false);
+        }, 10);
     };
 
-    // Get seat styling
-    const getSeatStyle = (seat) => {
-        if (!seat.exists || seat.partOfCouple) return 'bg-transparent border-transparent';
+    // Get seat styling cho display BÊN NGOÀI - FIXED
+    const getSeatStyleDisplay = useCallback((seat) => {
+        if (!seat) return 'bg-transparent border-transparent';
 
         const typeStyle = SEAT_TYPES[seat.seatType] || SEAT_TYPES.STANDARD;
 
         if (seat.status === 'AVAILABLE') {
-            return `${typeStyle.color} border-2 hover:scale-110 transition-transform cursor-pointer`;
+            return `${typeStyle.color} border-2`;
         }
         return typeStyle.colorActive;
-    };
+    }, [SEAT_TYPES]);
 
-    const getSeatDisplay = (seat) => {
-        if (!seat.exists || seat.partOfCouple) return '';
+    const getSeatDisplaySimple = useCallback((seat) => {
+        if (!seat) return '';
 
         const icon = SEAT_TYPES[seat.seatType]?.icon || '';
 
-        if (seat.isCouple) {
+        if (seat.seatType === 'COUPLE') {
             return <span className="text-xs">{icon}</span>;
         }
 
-        return <span className="text-xs">{seat.column}</span>;
-    };
+        return <span className="text-xs">{seat.seatNumber.slice(1)}</span>;
+    }, [SEAT_TYPES]);
 
-    const getSeatWidth = (seat) => {
-        if (seat.isCouple && seat.exists) return 'w-20'; // Double width
+    const getSeatWidthDisplay = useCallback((seat) => {
+        if (!seat) return 'w-10';
+        if (seat.seatType === 'COUPLE') return 'w-20';
         return 'w-10';
-    };
+    }, []);
 
     // Áp dụng giá mới cho toàn bộ layout hiện tại
-    const applyNewPricesToLayout = () => {
+    const applyNewPricesToLayout = useCallback(() => {
         if (seatGrid.length > 0) {
-            const newGrid = JSON.parse(JSON.stringify(seatGrid));
-            const currentPriceConfig = getRoomPriceConfig(selectedRoom);
+            setSeatGrid(currentGrid => {
+                const newGrid = currentGrid.map(row => [...row]);
+                const currentPriceConfig = getRoomPriceConfig(selectedRoom);
 
-            newGrid.forEach(row => {
-                row.forEach(seat => {
-                    if (seat.exists) {
-                        seat.priceMultiplier = currentPriceConfig[seat.seatType] || 1.0;
-                    }
+                newGrid.forEach(row => {
+                    row.forEach(seat => {
+                        if (seat.exists) {
+                            seat.priceMultiplier = currentPriceConfig[seat.seatType] || 1.0;
+                        }
+                    });
                 });
-            });
 
-            setSeatGrid(newGrid);
+                return newGrid;
+            });
         }
-    };
+    }, [selectedRoom, getRoomPriceConfig]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-6">
@@ -624,7 +720,6 @@ const SmartRoomManagement = () => {
                                                     <Sofa className="w-4 h-4" />
                                                     {room.totalSeats} ghế
                                                 </p>
-                                                {/* Hiển thị thông tin giá nếu có cấu hình đặc biệt */}
                                                 {roomPriceConfig[room.roomID] && (
                                                     <p className="text-xs text-yellow-300 mt-1 flex items-center gap-1">
                                                         <span>⭐</span>
@@ -659,7 +754,7 @@ const SmartRoomManagement = () => {
                         )}
                     </div>
 
-                    {/* Seat Layout Display */}
+                    {/* Seat Layout Display - FIXED FOR EXTERNAL VIEW */}
                     <div className="lg:col-span-2 bg-white/10 backdrop-blur-md rounded-lg shadow-2xl p-6 border border-white/20">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-white">
@@ -703,28 +798,31 @@ const SmartRoomManagement = () => {
                                     </div>
                                 </div>
 
-                                {/* Seats */}
+                                {/* Seats - FIXED EXTERNAL DISPLAY */}
                                 <div className="flex flex-col items-center space-y-2 overflow-x-auto">
                                     {Object.keys(seatGrid).sort().map(rowKey => (
                                         <div key={rowKey} className="flex items-center gap-3">
                                             <div className="w-8 text-center font-bold text-white text-lg">{rowKey}</div>
                                             <div className="flex gap-1">
-                                                {Object.keys(seatGrid[rowKey]).sort((a, b) => parseInt(a) - parseInt(b)).map(colKey => {
-                                                    const seat = seatGrid[rowKey][colKey];
-                                                    const width = getSeatWidth(seat);
-                                                    const currentPriceConfig = getRoomPriceConfig(selectedRoom);
-                                                    const price = currentPriceConfig[seat.seatType] || 1.0;
+                                                {Object.keys(seatGrid[rowKey])
+                                                    .map(Number)
+                                                    .sort((a, b) => a - b)
+                                                    .map(colKey => {
+                                                        const seat = seatGrid[rowKey][colKey];
+                                                        const width = getSeatWidthDisplay(seat);
+                                                        const currentPriceConfig = getRoomPriceConfig(selectedRoom);
+                                                        const price = currentPriceConfig[seat.seatType] || 1.0;
 
-                                                    return (
-                                                        <div
-                                                            key={`${rowKey}-${colKey}`}
-                                                            className={`${width} h-10 rounded flex items-center justify-center text-xs font-semibold ${getSeatStyle(seat)}`}
-                                                            title={seat.exists ? `${seat.seatNumber} - ${SEAT_TYPES[seat.seatType]?.name} (×${price})` : ''}
-                                                        >
-                                                            {getSeatDisplay(seat)}
-                                                        </div>
-                                                    );
-                                                })}
+                                                        return (
+                                                            <div
+                                                                key={colKey}
+                                                                className={`${width} h-10 rounded flex items-center justify-center text-xs font-semibold ${getSeatStyleDisplay(seat)}`}
+                                                                title={seat ? `${seat.seatNumber} - ${SEAT_TYPES[seat.seatType]?.name} (×${price})` : ''}
+                                                            >
+                                                                {getSeatDisplaySimple(seat)}
+                                                            </div>
+                                                        );
+                                                    })}
                                             </div>
                                         </div>
                                     ))}
@@ -780,6 +878,7 @@ const SmartRoomManagement = () => {
                     </div>
                 </div>
 
+                {/* Các modal khác giữ nguyên... */}
                 {/* Room Modal */}
                 {showRoomModal && (
                     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -851,7 +950,7 @@ const SmartRoomManagement = () => {
                     </div>
                 )}
 
-                {/* Layout Designer Modal */}
+                {/* Layout Designer Modal - GIỮ NGUYÊN */}
                 {showLayoutDesigner && (
                     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
                         <div className="bg-gray-900 rounded-lg w-full max-w-7xl my-8 border border-white/20">
@@ -863,235 +962,231 @@ const SmartRoomManagement = () => {
                             </div>
 
                             <div className="p-6 max-h-[80vh] overflow-y-auto">
-                                {/* Controls */}
-                                <div className="mb-6 space-y-4">
-                                    {/* Mode Selection */}
-                                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                                        <h3 className="text-white font-semibold mb-3">Chế Độ Thiết Kế:</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                            <button
-                                                onClick={() => setSeatMode('single')}
-                                                className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'single'
-                                                    ? 'bg-green-500 text-white shadow-lg'
-                                                    : 'bg-white/10 text-white hover:bg-white/20'
-                                                    }`}
-                                            >
-                                                💺 Ghế Đơn
-                                            </button>
-                                            <button
-                                                onClick={() => setSeatMode('couple')}
-                                                className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'couple'
-                                                    ? 'bg-pink-500 text-white shadow-lg'
-                                                    : 'bg-white/10 text-white hover:bg-white/20'
-                                                    }`}
-                                            >
-                                                ❤️ Ghế Đôi
-                                            </button>
-                                            <button
-                                                onClick={() => setSeatMode('premium')}
-                                                className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'premium'
-                                                    ? 'bg-yellow-500 text-white shadow-lg'
-                                                    : 'bg-white/10 text-white hover:bg-white/20'
-                                                    }`}
-                                            >
-                                                ⭐ Khu Trung Tâm
-                                            </button>
-                                            <button
-                                                onClick={() => setSeatMode('aisle')}
-                                                className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'aisle'
-                                                    ? 'bg-gray-500 text-white shadow-lg'
-                                                    : 'bg-white/10 text-white hover:bg-white/20'
-                                                    }`}
-                                            >
-                                                🚪 Lối Đi
-                                            </button>
-                                            <button
-                                                onClick={() => setShowTemplateModal(true)}
-                                                className="px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:from-blue-600 hover:to-cyan-600"
-                                            >
-                                                <Copy className="inline w-4 h-4 mr-1" />
-                                                Template
-                                            </button>
-                                        </div>
+                                {isLoadingGrid ? (
+                                    <div className="flex justify-center items-center py-20">
+                                        <div className="text-white text-lg">Đang tải layout...</div>
                                     </div>
+                                ) : (
+                                    <>
+                                        {/* Controls */}
+                                        <div className="mb-6 space-y-4">
+                                            {/* Mode Selection */}
+                                            <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                                                <h3 className="text-white font-semibold mb-3">Chế Độ Thiết Kế:</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                                    <button
+                                                        onClick={() => setSeatMode('single')}
+                                                        className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'single'
+                                                            ? 'bg-green-500 text-white shadow-lg'
+                                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                                            }`}
+                                                    >
+                                                        💺 Ghế Đơn
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSeatMode('couple')}
+                                                        className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'couple'
+                                                            ? 'bg-pink-500 text-white shadow-lg'
+                                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                                            }`}
+                                                    >
+                                                        ❤️ Ghế Đôi
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSeatMode('premium')}
+                                                        className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'premium'
+                                                            ? 'bg-yellow-500 text-white shadow-lg'
+                                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                                            }`}
+                                                    >
+                                                        ⭐ Khu Trung Tâm
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSeatMode('aisle')}
+                                                        className={`px-4 py-3 rounded-lg transition-all ${seatMode === 'aisle'
+                                                            ? 'bg-gray-500 text-white shadow-lg'
+                                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                                            }`}
+                                                    >
+                                                        🚪 Lối Đi
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowTemplateModal(true)}
+                                                        className="px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:from-blue-600 hover:to-cyan-600"
+                                                    >
+                                                        <Copy className="inline w-4 h-4 mr-1" />
+                                                        Template
+                                                    </button>
+                                                </div>
+                                            </div>
 
-                                    {/* Grid Config */}
-                                    <div className="bg-white/5 p-4 rounded-lg border border-white/10">
-                                        <h3 className="text-white font-semibold mb-3">Cấu Hình Lưới:</h3>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-2 text-white">Số Hàng</label>
-                                                <input
-                                                    type="number"
-                                                    value={layoutConfig.rows}
-                                                    onChange={(e) => setLayoutConfig({ ...layoutConfig, rows: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                                                    min="1"
-                                                    max="26"
-                                                />
+                                            {/* Grid Config */}
+                                            <div className="bg-white/5 p-4 rounded-lg border border-white/10">
+                                                <h3 className="text-white font-semibold mb-3">Cấu Hình Lưới:</h3>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-2 text-white">Số Hàng</label>
+                                                        <input
+                                                            type="number"
+                                                            value={layoutConfig.rows}
+                                                            onChange={(e) => setLayoutConfig({ ...layoutConfig, rows: parseInt(e.target.value) })}
+                                                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                                                            min="1"
+                                                            max="26"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-2 text-white">Số Cột</label>
+                                                        <input
+                                                            type="number"
+                                                            value={layoutConfig.columns}
+                                                            onChange={(e) => setLayoutConfig({ ...layoutConfig, columns: parseInt(e.target.value) })}
+                                                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                                                            min="1"
+                                                            max="30"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium mb-2 text-white">Nhãn Hàng</label>
+                                                        <input
+                                                            type="text"
+                                                            value={layoutConfig.rowLabels}
+                                                            onChange={(e) => setLayoutConfig({ ...layoutConfig, rowLabels: e.target.value })}
+                                                            className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                                                            placeholder="ABCDEFGH..."
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => initializeSeatGridFast()}
+                                                    className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                                                >
+                                                    Tạo Lưới Ghế
+                                                </button>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-2 text-white">Số Cột</label>
-                                                <input
-                                                    type="number"
-                                                    value={layoutConfig.columns}
-                                                    onChange={(e) => setLayoutConfig({ ...layoutConfig, columns: parseInt(e.target.value) })}
-                                                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                                                    min="1"
-                                                    max="30"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-2 text-white">Nhãn Hàng</label>
-                                                <input
-                                                    type="text"
-                                                    value={layoutConfig.rowLabels}
-                                                    onChange={(e) => setLayoutConfig({ ...layoutConfig, rowLabels: e.target.value })}
-                                                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
-                                                    placeholder="ABCDEFGH..."
-                                                />
+
+                                            {/* Price Info */}
+                                            <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/30">
+                                                <h3 className="text-green-300 font-semibold mb-2">💰 Thông Tin Giá:</h3>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                    {Object.entries(SEAT_TYPES).map(([key, type]) => {
+                                                        const currentPriceConfig = getRoomPriceConfig(selectedRoom);
+                                                        const price = currentPriceConfig[key] || 1.0;
+                                                        return (
+                                                            <div key={key} className="flex items-center gap-2 text-sm">
+                                                                <div className={`w-4 h-4 rounded ${type.color} flex items-center justify-center text-xs`}>
+                                                                    {type.icon}
+                                                                </div>
+                                                                <span className="text-green-200">{type.name}</span>
+                                                                <span className="text-yellow-300 font-semibold">×{price}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => initializeSeatGrid()}
-                                            className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                                        >
-                                            Tạo Lưới Ghế
-                                        </button>
-                                    </div>
 
-                                    {/* Price Info */}
-                                    <div className="bg-green-500/10 p-4 rounded-lg border border-green-500/30">
-                                        <h3 className="text-green-300 font-semibold mb-2">💰 Thông Tin Giá:</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                            {Object.entries(SEAT_TYPES).map(([key, type]) => {
-                                                const currentPriceConfig = getRoomPriceConfig(selectedRoom);
-                                                const price = currentPriceConfig[key] || 1.0;
-                                                return (
-                                                    <div key={key} className="flex items-center gap-2 text-sm">
-                                                        <div className={`w-4 h-4 rounded ${type.color} flex items-center justify-center text-xs`}>
-                                                            {type.icon}
+                                        {/* Seat Grid */}
+                                        {seatGrid.length > 0 && (
+                                            <div className="bg-black/30 p-6 rounded-lg border border-white/10">
+                                                <div className="text-center mb-6">
+                                                    <div className="bg-gradient-to-b from-gray-700 to-gray-900 text-white py-3 px-8 rounded-lg inline-block shadow-xl border-2 border-white/20">
+                                                        <Monitor className="inline w-5 h-5 mr-2" />
+                                                        MÀN HÌNH
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col items-center space-y-2 overflow-x-auto pb-4">
+                                                    {seatGrid.map((row, rowIndex) => (
+                                                        <div key={rowIndex} className="flex items-center gap-2">
+                                                            <div className="w-8 text-center font-bold text-white text-lg">{row[0]?.row}</div>
+                                                            <div className="flex gap-1">
+                                                                {row.map((seat, colIndex) => (
+                                                                    <Seat
+                                                                        key={colIndex}
+                                                                        seat={seat}
+                                                                        mode={seatMode}
+                                                                        onClick={() => handleSeatClick(rowIndex, colIndex)}
+                                                                    />
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                        <span className="text-green-200">{type.name}</span>
-                                                        <span className="text-yellow-300 font-semibold">×{price}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Seat Grid */}
-                                {seatGrid.length > 0 && (
-                                    <div className="bg-black/30 p-6 rounded-lg border border-white/10">
-                                        <div className="text-center mb-6">
-                                            <div className="bg-gradient-to-b from-gray-700 to-gray-900 text-white py-3 px-8 rounded-lg inline-block shadow-xl border-2 border-white/20">
-                                                <Monitor className="inline w-5 h-5 mr-2" />
-                                                MÀN HÌNH
-                                            </div>
-                                        </div>
-
-                                        <div className="flex flex-col items-center space-y-2 overflow-x-auto pb-4">
-                                            {seatGrid.map((row, rowIndex) => (
-                                                <div key={rowIndex} className="flex items-center gap-2">
-                                                    <div className="w-8 text-center font-bold text-white text-lg">{row[0]?.row}</div>
-                                                    <div className="flex gap-1">
-                                                        {row.map((seat, colIndex) => {
-                                                            const width = getSeatWidth(seat);
-                                                            const currentPriceConfig = getRoomPriceConfig(selectedRoom);
-                                                            const price = currentPriceConfig[seat.seatType] || 1.0;
-
-                                                            return (
-                                                                <button
-                                                                    key={colIndex}
-                                                                    onClick={() => handleSeatClick(rowIndex, colIndex)}
-                                                                    className={`${width} h-10 rounded flex items-center justify-center text-xs font-semibold transition-all ${getSeatStyle(seat)} shadow-md`}
-                                                                    title={
-                                                                        seat.exists
-                                                                            ? `${seat.seatNumber} - ${SEAT_TYPES[seat.seatType]?.name} (×${price}) - Click để ${seatMode === 'aisle' ? 'xóa' : 'thay đổi'}`
-                                                                            : 'Click để thêm ghế'
-                                                                    }
-                                                                >
-                                                                    {getSeatDisplay(seat)}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
 
-                                        {/* Legend */}
-                                        <div className="mt-8 flex justify-center gap-4 flex-wrap">
-                                            {Object.entries(SEAT_TYPES).map(([key, type]) => {
-                                                const currentPriceConfig = getRoomPriceConfig(selectedRoom);
-                                                const price = currentPriceConfig[key] || 1.0;
+                                                {/* Legend */}
+                                                <div className="mt-8 flex justify-center gap-4 flex-wrap">
+                                                    {Object.entries(SEAT_TYPES).map(([key, type]) => {
+                                                        const currentPriceConfig = getRoomPriceConfig(selectedRoom);
+                                                        const price = currentPriceConfig[key] || 1.0;
 
-                                                return (
-                                                    <div key={key} className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-lg border border-white/20">
-                                                        <div className={`w-6 h-6 rounded ${type.color} flex items-center justify-center text-sm border-2`}>
-                                                            {type.icon}
+                                                        return (
+                                                            <div key={key} className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-lg border border-white/20">
+                                                                <div className={`w-6 h-6 rounded ${type.color} flex items-center justify-center text-sm border-2`}>
+                                                                    {type.icon}
+                                                                </div>
+                                                                <span className="text-sm text-white">{type.name}</span>
+                                                                <span className="text-xs text-yellow-300 font-semibold">×{price}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Stats */}
+                                                <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+                                                    <div className="bg-green-500/20 p-3 rounded-lg text-center border border-green-500/30">
+                                                        <div className="text-2xl font-bold text-green-300">
+                                                            {seatGrid.flat().filter(s => s.exists && !s.partOfCouple).length}
                                                         </div>
-                                                        <span className="text-sm text-white">{type.name}</span>
-                                                        <span className="text-xs text-yellow-300 font-semibold">×{price}</span>
+                                                        <div className="text-sm text-green-200">Tổng ghế</div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    <div className="bg-gray-500/20 p-3 rounded-lg text-center border border-gray-500/30">
+                                                        <div className="text-2xl font-bold text-gray-300">
+                                                            {seatGrid.flat().filter(s => s.seatType === 'STANDARD' && s.exists).length}
+                                                        </div>
+                                                        <div className="text-sm text-gray-200">Thường</div>
+                                                    </div>
+                                                    <div className="bg-pink-500/20 p-3 rounded-lg text-center border border-pink-500/30">
+                                                        <div className="text-2xl font-bold text-pink-300">
+                                                            {seatGrid.flat().filter(s => s.seatType === 'COUPLE' && s.exists).length}
+                                                        </div>
+                                                        <div className="text-sm text-pink-200">Ghế Đôi</div>
+                                                    </div>
+                                                    <div className="bg-yellow-500/20 p-3 rounded-lg text-center border border-yellow-500/30">
+                                                        <div className="text-2xl font-bold text-yellow-300">
+                                                            {seatGrid.flat().filter(s => s.seatType === 'PREMIUM' && s.exists).length}
+                                                        </div>
+                                                        <div className="text-sm text-yellow-200">Premium</div>
+                                                    </div>
+                                                    <div className="bg-purple-500/20 p-3 rounded-lg text-center border border-purple-500/30">
+                                                        <div className="text-2xl font-bold text-purple-300">
+                                                            {seatGrid.flat().filter(s => s.seatType === 'VIP' && s.exists).length}
+                                                        </div>
+                                                        <div className="text-sm text-purple-200">VIP</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
-                                        {/* Stats */}
-                                        <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
-                                            <div className="bg-green-500/20 p-3 rounded-lg text-center border border-green-500/30">
-                                                <div className="text-2xl font-bold text-green-300">
-                                                    {seatGrid.flat().filter(s => s.exists && !s.partOfCouple).length}
-                                                </div>
-                                                <div className="text-sm text-green-200">Tổng ghế</div>
-                                            </div>
-                                            <div className="bg-gray-500/20 p-3 rounded-lg text-center border border-gray-500/30">
-                                                <div className="text-2xl font-bold text-gray-300">
-                                                    {seatGrid.flat().filter(s => s.seatType === 'STANDARD' && s.exists).length}
-                                                </div>
-                                                <div className="text-sm text-gray-200">Thường</div>
-                                            </div>
-                                            <div className="bg-pink-500/20 p-3 rounded-lg text-center border border-pink-500/30">
-                                                <div className="text-2xl font-bold text-pink-300">
-                                                    {seatGrid.flat().filter(s => s.seatType === 'COUPLE' && s.exists).length}
-                                                </div>
-                                                <div className="text-sm text-pink-200">Ghế Đôi</div>
-                                            </div>
-                                            <div className="bg-yellow-500/20 p-3 rounded-lg text-center border border-yellow-500/30">
-                                                <div className="text-2xl font-bold text-yellow-300">
-                                                    {seatGrid.flat().filter(s => s.seatType === 'PREMIUM' && s.exists).length}
-                                                </div>
-                                                <div className="text-sm text-yellow-200">Premium</div>
-                                            </div>
-                                            <div className="bg-purple-500/20 p-3 rounded-lg text-center border border-purple-500/30">
-                                                <div className="text-2xl font-bold text-purple-300">
-                                                    {seatGrid.flat().filter(s => s.seatType === 'VIP' && s.exists).length}
-                                                </div>
-                                                <div className="text-sm text-purple-200">VIP</div>
-                                            </div>
+                                        {/* Save Button */}
+                                        <div className="flex gap-3 mt-6">
+                                            <button
+                                                onClick={() => setShowLayoutDesigner(false)}
+                                                className="flex-1 px-6 py-3 bg-white/10 rounded-lg hover:bg-white/20 text-white"
+                                            >
+                                                Hủy
+                                            </button>
+                                            <button
+                                                onClick={saveLayoutToDatabase}
+                                                disabled={loading}
+                                                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                                            >
+                                                <Save className="w-5 h-5" />
+                                                {loading ? 'Đang lưu...' : 'Lưu Layout'}
+                                            </button>
                                         </div>
-                                    </div>
+                                    </>
                                 )}
-
-                                {/* Save Button */}
-                                <div className="flex gap-3 mt-6">
-                                    <button
-                                        onClick={() => setShowLayoutDesigner(false)}
-                                        className="flex-1 px-6 py-3 bg-white/10 rounded-lg hover:bg-white/20 text-white"
-                                    >
-                                        Hủy
-                                    </button>
-                                    <button
-                                        onClick={saveLayoutToDatabase}
-                                        disabled={loading}
-                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-                                    >
-                                        <Save className="w-5 h-5" />
-                                        {loading ? 'Đang lưu...' : 'Lưu Layout'}
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>

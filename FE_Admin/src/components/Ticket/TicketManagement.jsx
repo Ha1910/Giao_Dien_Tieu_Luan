@@ -341,11 +341,6 @@ const TicketManagement = () => {
                                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                                 {loading ? 'Đang tải...' : 'Làm mới'}
                             </button>
-                            {userIsLoggedIn && activeTab === 'my' && (
-                                <button onClick={() => setShowBookModal(true)} className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl shadow-lg transition-all">
-                                    <Plus className="w-5 h-5" /> Đặt vé mới
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -382,11 +377,11 @@ const TicketManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <input type="text" placeholder="Tìm theo mã vé, tên, email, phim, phòng..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyPress={handleSearchKeyPress} className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="ACTIVE">Đang hoạt động</option>
-                            <option value="CANCELLED">Đã hủy</option>
-                            <option value="USED">Đã sử dụng</option>
-                            <option value="EXPIRED">Đã hết hạn</option>
+                            <option value="all" className="bg-gray-800 text-blue-300">Tất cả trạng thái</option>
+                            <option value="ACTIVE" className="bg-gray-800 text-green-300">Đang hoạt động</option>
+                            <option value="CANCELLED" className="bg-gray-800 text-red-300">Đã hủy</option>
+                            <option value="USED" className="bg-gray-800 text-blue-300">Đã sử dụng</option>
+                            <option value="EXPIRED" className="bg-gray-800 text-orange-300">Đã hết hạn</option>
                         </select>
                         <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         <button onClick={activeTab === 'my' ? fetchMyTickets : fetchAllTickets} disabled={loading} className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50">
@@ -535,42 +530,6 @@ const TicketManagement = () => {
                                 {modalLoading ? 'Đang hủy...' : 'Xác nhận hủy'}
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Book Modal */}
-            {showBookModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-white/20 shadow-2xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-white">Đặt vé mới</h2>
-                            <button onClick={() => setShowBookModal(false)} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
-                        </div>
-
-                        <form onSubmit={handleBookSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-white/80 mb-2 text-sm font-medium">ID Suất chiếu *</label>
-                                <input type="number" value={bookForm.showtimeId} onChange={(e) => setBookForm({ ...bookForm, showtimeId: e.target.value })} className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white" placeholder="Nhập ID suất chiếu" required />
-                            </div>
-
-                            <div>
-                                <label className="block text-white/80 mb-2 text-sm font-medium">IDs Ghế * (vd: 8,9)</label>
-                                <input type="text" value={bookForm.seatIds} onChange={(e) => setBookForm({ ...bookForm, seatIds: e.target.value })} className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white" placeholder="Nhập IDs ghế, phân cách bằng dấu phẩy" required />
-                            </div>
-
-                            <div>
-                                <label className="block text-white/80 mb-2 text-sm font-medium">IDs Combo (tùy chọn)</label>
-                                <input type="text" value={bookForm.comboIds} onChange={(e) => setBookForm({ ...bookForm, comboIds: e.target.value })} className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white" placeholder="VD: 1,2 (nếu muốn mua kèm combo)" />
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setShowBookModal(false)} disabled={modalLoading} className="flex-1 px-6 py-3 bg-white/10 text-white rounded-xl">Hủy</button>
-                                <button type="submit" disabled={modalLoading} className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl">
-                                    {modalLoading ? 'Đang xử lý...' : 'Đặt vé'}
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}

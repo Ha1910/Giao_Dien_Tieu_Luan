@@ -341,7 +341,7 @@ const UserManagement = () => {
                             <select
                                 value={roleFilter}
                                 onChange={(e) => setRoleFilter(e.target.value)}
-                                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer"
                             >
                                 <option value="">Tất cả vai trò</option>
                                 <option value="ADMIN">Quản trị viên</option>

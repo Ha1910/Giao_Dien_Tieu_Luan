@@ -534,14 +534,7 @@ const ReviewManagement = () => {
                                 <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                                 {loading ? 'Đang tải...' : 'Làm mới'}
                             </button>
-                            <button
-                                onClick={openCreateModal}
-                                disabled={moviesLoading || movies.length === 0 || !isLoggedIn()}
-                                className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg transition-all disabled:opacity-50"
-                            >
-                                <MessageSquare className="w-5 h-5" />
-                                Thêm đánh giá
-                            </button>
+                            {/* ĐÃ XÓA NÚT "THÊM ĐÁNH GIÁ" */}
                         </div>
                     </div>
                 </div>
@@ -626,7 +619,7 @@ const ReviewManagement = () => {
                         <select
                             value={filterRating}
                             onChange={(e) => setFilterRating(e.target.value)}
-                            className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         >
                             <option value="all">Tất cả sao</option>
                             <option value="5">5 sao</option>
@@ -638,7 +631,7 @@ const ReviewManagement = () => {
                         <select
                             value={filterMovie}
                             onChange={(e) => setFilterMovie(e.target.value)}
-                            className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-medium focus:ring-2 focus:ring-blue-500 cursor-pointer"
                         >
                             <option value="all">Tất cả phim</option>
                             {movies.map(movie => (
@@ -772,98 +765,7 @@ const ReviewManagement = () => {
                     )}
                 </div>
 
-                {/* Create Modal */}
-                {showModal && (
-                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                        <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-white/20 shadow-2xl">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-white">
-                                    {selectedReview ? 'Chỉnh sửa đánh giá' : 'Thêm đánh giá mới'}
-                                </h2>
-                                <button onClick={closeModal} className="text-white/70 hover:text-white">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Phim *</label>
-                                    <select
-                                        value={formData.movieId}
-                                        onChange={(e) => setFormData({ ...formData, movieId: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        required
-                                        disabled={moviesLoading || selectedReview}
-                                    >
-                                        <option value="">{moviesLoading ? 'Đang tải danh sách phim...' : 'Chọn phim'}</option>
-                                        {movies.map(movie => (
-                                            <option key={movie.movieID} value={movie.movieID}>
-                                                {movie.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="flex items-start gap-2 mt-2 p-3 bg-yellow-500/20 rounded-lg border border-yellow-500/30">
-                                        <Ticket className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                                        <p className="text-yellow-300 text-xs">
-                                            <strong>Điều kiện:</strong> Chỉ có thể đánh giá phim bạn đã mua vé và suất chiếu đã kết thúc
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Số sao *</label>
-                                    <select
-                                        value={formData.star}
-                                        onChange={(e) => setFormData({ ...formData, star: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        required
-                                    >
-                                        <option value="">Chọn số sao</option>
-                                        <option value="5">5 sao - Tuyệt vời</option>
-                                        <option value="4">4 sao - Rất tốt</option>
-                                        <option value="3">3 sao - Tốt</option>
-                                        <option value="2">2 sao - Tạm được</option>
-                                        <option value="1">1 sao - Không hay</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-white/80 mb-2 text-sm font-medium">Bình luận</label>
-                                    <textarea
-                                        value={formData.comment}
-                                        onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Chia sẻ cảm nhận của bạn về phim (tối đa 2000 ký tự)..."
-                                        rows="4"
-                                        maxLength="2000"
-                                    />
-                                    <div className="text-right text-white/50 text-sm mt-1">
-                                        {formData.comment.length}/2000
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={closeModal}
-                                        disabled={modalLoading}
-                                        className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors disabled:opacity-50"
-                                    >
-                                        Hủy
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={modalLoading || moviesLoading}
-                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        <Save className="w-5 h-5" />
-                                        {modalLoading ? 'Đang xử lý...' : (selectedReview ? 'Cập nhật' : 'Thêm đánh giá')}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                )}
+                {/* Create Modal - ĐÃ XÓA HOÀN TOÀN */}
 
                 {/* Delete Confirmation Modal */}
                 {showDeleteModal && selectedReview && (

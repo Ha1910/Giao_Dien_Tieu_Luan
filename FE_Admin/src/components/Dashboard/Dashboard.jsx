@@ -869,7 +869,7 @@ const Dashboard = () => {
                                             <select
                                                 value={roomForm.roomType}
                                                 onChange={(e) => setRoomForm({ ...roomForm, roomType: e.target.value })}
-                                                className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-semibold placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-colors"
                                             >
                                                 <option value="STANDARD">Tiêu chuẩn</option>
                                                 <option value="VIP">VIP</option>
@@ -943,7 +943,7 @@ const Dashboard = () => {
                                         <select
                                             value={showtimeForm.movieId}
                                             onChange={(e) => setShowtimeForm({ ...showtimeForm, movieId: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                                            className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-semibold placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-colors"
                                             required
                                         >
                                             <option value="">-- Chọn phim --</option>
@@ -961,7 +961,7 @@ const Dashboard = () => {
                                         <select
                                             value={showtimeForm.roomId}
                                             onChange={(e) => setShowtimeForm({ ...showtimeForm, roomId: e.target.value })}
-                                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                                            className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-semibold placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-colors"
                                             required
                                         >
                                             <option value="">-- Chọn phòng --</option>
