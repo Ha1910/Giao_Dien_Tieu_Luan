@@ -71,7 +71,7 @@ const Home = () => {
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={isSidebarOpen} />
 
             <div className="flex-1 flex flex-col lg:ml-0">
-                <Header user={user} handleLogout={handleLogout} onMenuToggle={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+
                 <main className="flex-1 overflow-auto">{renderContent()}</main>
                 <Footer />
             </div>

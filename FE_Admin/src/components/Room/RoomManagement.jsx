@@ -907,7 +907,7 @@ const SmartRoomManagement = () => {
                                         <select
                                             value={roomForm.roomType}
                                             onChange={(e) => setRoomForm({ ...roomForm, roomType: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                                            className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-semibold placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-colors"
                                         >
                                             <option value="STANDARD">Standard</option>
                                             <option value="VIP">VIP</option>

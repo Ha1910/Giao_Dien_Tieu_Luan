@@ -1,8 +1,21 @@
 // components/layout/Header.jsx
-import React, { useState } from 'react';
-import { LogOut, User, Menu, X, Film, Sofa, Home, Settings } from 'lucide-react';
+import React from 'react';
+import { LogOut, User, Menu, X, Film } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const Header = ({ user, handleLogout, onMenuToggle, isSidebarOpen }) => {
+const Header = ({ user, onMenuToggle, isSidebarOpen }) => {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        // Xóa tất cả dữ liệu đăng nhập
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('auth');
+
+        // Điều hướng về trang login (trang chủ)
+        navigate('/');
+    };
+
     return (
         <header className="bg-gradient-to-r from-purple-600 to-pink-600 shadow-lg">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

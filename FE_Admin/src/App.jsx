@@ -1,40 +1,70 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home/Home";             // Trang chủ khi chưa login
+import { useState } from "react";
+import Home from "./pages/Home/Home";
 import Login from "./pages/Auth/Login";
-
 import Profile from "./pages/Auth/Profile";
-// Trang chủ sau khi login
 import Header from "./components/layout/Header";
 import MovieList from "./components/Movie/MovieManagement";
 import InputField from "./components/Login/InputField";
 
-
-
-
 function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [user, setUser] = useState(null); // Giả sử có state user
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
-
     <BrowserRouter>
+      {/* Header sẽ hiển thị trên các trang cần thiết */}
       <Routes>
-        {/* Trang chủ (guest) */}
-        <Route path="/" element={<Home />} />
-        <Route path="/header" element={<Header></Header>}></Route>
-        <Route path="/movielist" element={<MovieList></MovieList>}></Route>
+        {/* Trang không cần Header */}
+        <Route path="/" element={<Login />} />
+        <Route path="/input-file" element={<InputField />} />
 
-        {/* Auth */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/input-file" element={<InputField></InputField>} />
-
-        {/* User */}
-
-        <Route path="/profile" element={<Profile />} />
-
-
-        {/* Products */}
-
+        {/* Trang cần Header */}
+        <Route
+          path="/home"
+          element={
+            <div>
+              <Header
+                user={user}
+                onMenuToggle={toggleSidebar}
+                isSidebarOpen={isSidebarOpen}
+              />
+              <Home />
+            </div>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <div>
+              <Header
+                user={user}
+                onMenuToggle={toggleSidebar}
+                isSidebarOpen={isSidebarOpen}
+              />
+              <Profile />
+            </div>
+          }
+        />
+        <Route
+          path="/movielist"
+          element={
+            <div>
+              <Header
+                user={user}
+                onMenuToggle={toggleSidebar}
+                isSidebarOpen={isSidebarOpen}
+              />
+              <MovieList />
+            </div>
+          }
+        />
       </Routes>
     </BrowserRouter>
-
   );
 }
 

@@ -61,13 +61,13 @@ const Login = () => {
                 // Chuyển hướng dựa trên role
                 switch (data.role) {
                     case "ADMIN":
-                        navigate("/");
+                        navigate("/home");
                         break;
                     case "STAFF":
                         navigate("/staff");
                         break;
                     default:
-                        navigate("/home");
+                        navigate("/customer");
                         break;
                 }
             } else {
