@@ -489,7 +489,7 @@ const MovieManagement = () => {
                         <select
                             value={filterGenre}
                             onChange={(e) => setFilterGenre(e.target.value)}
-                            className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-white font-semibold placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-colors"
                         >
                             <option value="all">Tất cả thể loại</option>
                             {getUniqueGenres().map(genre => (
